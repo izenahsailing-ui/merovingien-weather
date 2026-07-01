@@ -27,7 +27,7 @@ def sea_hex(h,n):
 DIRS={"N":0,"NE":45,"E":90,"SE":135,"S":180,"SW":225,"W":270,"NW":315,"NNW":337.5,"SSE":157.5,"?":315}
 ABRI={"La Ciotat":("Mistral, Ouest à Nord","Est et Sud-Est"),
       "La Madrague (St-Cyr)":("Est, Sud-Est, NW (digue)","Sud et Sud-Ouest")}
-MF_LINK="https://meteofrance.com/meteo-marine/marseille-la-ciotat/MICROZONE-30"
+MF_LINK="https://meteofrance.com/meteo-marine/la-ciotat/570199"
 
 ss=getSampleStyleSheet()
 def S(n,**k):return ParagraphStyle(n,parent=ss["Normal"],**k)
@@ -190,8 +190,8 @@ def verdict_of(f):return "Très confortable" if f<0.35 else ("Correct" if f<0.6 
 
 def narrative(b):
     nav=b["nav"];best=b["mouillage_best"];dd=b["dom_dir"]
-    if b["vent_max"]>=28: left=("warn",AMBER,"BMS CÔTE PROBABLE","Vent moyen au-dessus de force 7, confirme sur Météo-France")
-    else: left=("ok",GREEN,"AUCUN BMS CALCULÉ","Vigilance Var et Bouches-du-Rhône surveillée")
+    if b.get("bms_est"): left=("warn",AMBER,"BMS PROBABLE : "+b["bms_est"].upper(),"Estimation modèle, confirme le bulletin officiel")
+    else: left=("ok",GREEN,"PAS DE BMS ATTENDU","Estimation modèle, confirme sur Météo-France")
     if b["raf_max"]>=30: right=("warn",AMBER,"ÉPISODE SIGNALÉ","%s demain, rafales %d kn  P(>30)=%s%%"%(dd,b["raf_max"],b["p_raf30_tom"]))
     else: right=("ok",GREEN,"PAS D'ÉPISODE MAJEUR","Aucun coup de vent notable prévu")
     reco=[("CE SOIR","Mouille à <b>%s</b> : le mieux protégé du %s ce soir, mer la plus calme."%(best,dd))]
@@ -218,7 +218,7 @@ def narrative(b):
 
 def synthese_telegram(b):
     nav=b["nav"];feu={"G":"🟢 FAVORABLE","A":"🟠 PRUDENCE","R":"🔴 DÉCONSEILLÉ"}[nav["color"]]
-    bms="🔴 BMS Côte probable" if b["vent_max"]>=28 else "🟢 Pas de BMS"
+    bms=("🟠 BMS probable : "+b["bms_est"]) if b.get("bms_est") else "🟢 Pas de BMS attendu (estim.)"
     lines=["🌊 BRIEFING IZENAH · %s"%b["generated"],
            "La Ciotat ↔ Les Embiez",
            "",

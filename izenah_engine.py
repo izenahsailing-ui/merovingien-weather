@@ -326,8 +326,14 @@ def build_brief():
     if p1 is not None: tendance.append(("Vent fort (> force 6) entre J+5 et J+7", p1/100.0))
     if p2 is not None: tendance.append(("Coup de vent (> force 7) au-delà de J+8", p2/100.0))
 
+    # estimation BMS : Meteo-France emet un BMS Cote des force 7 (28 kn soutenu) ;
+    # les rafales 34-40 kn = coup de vent. On declenche sur les rafales ET le vent max (pas la moyenne lissee).
+    bms_est = ("coup de vent" if (raf_max >= 40 or vent_max_moy >= 34)
+               else ("grand frais à coup de vent" if (raf_max >= 34 or vent_max_moy >= 28) else None))
+
     brief=dict(
         generated=fr_date(now),
+        bms_est=bms_est,
         i_now=i_now, n=n,
         chart=chart, detail=detail,
         nav=dict(color=fc_color, status=nav_status, reason=nav_reason),

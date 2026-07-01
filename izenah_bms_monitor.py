@@ -71,7 +71,7 @@ def run(send=True):
            "Vent moyen jusqu'à %d kn, rafales %d kn (Cap Sicié %d kn).\n"
            "Probabilité de rafales > 34 kn (48 h) : %d %%.\n\n"
            "⚓ Anticipe un mouillage très protégé : La Ciotat par Mistral, La Madrague par vent d'Est.\n"
-           "ℹ️ Bulletin officiel Météo-France : https://meteofrance.com/meteo-marine/marseille-la-ciotat/MICROZONE-30"
+           "ℹ️ Bulletin officiel (BMS) Météo-France : https://meteofrance.com/meteo-marine/la-ciotat/570199"
            % (head, quand, round(peak_s), round(peak_g), round(cs), p34))
 
     if send:
