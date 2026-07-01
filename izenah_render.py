@@ -188,16 +188,32 @@ PILLCOL={"Élevée":GREEN,"Modérée":AMBER,"Faible":RED}
 def vcol_of(f):return CGd if f<0.35 else (CAd if f<0.6 else CRd)
 def verdict_of(f):return "Très confortable" if f<0.35 else ("Correct" if f<0.6 else ("Inconfortable" if f<0.78 else "À éviter"))
 
+def p_word(p):
+    try: p=int(round(float(p)))
+    except: return ""
+    if p>=90: return "quasi certain"
+    if p>=65: return "très probable"
+    if p>=40: return "probable"
+    if p>=15: return "possible"
+    return "peu probable"
+
 def narrative(b):
     nav=b["nav"];best=b["mouillage_best"];dd=b["dom_dir"]
-    if b.get("bms_est"): left=("warn",AMBER,"BMS PROBABLE : "+b["bms_est"].upper(),"Estimation modèle, confirme le bulletin officiel")
+    JOUR=("AUJOURD'HUI" if b.get("target")=="today" else "DEMAIN")
+    jour=("aujourd'hui" if b.get("target")=="today" else "demain")
+    jourC=("Aujourd'hui" if b.get("target")=="today" else "Demain")
+    vig=b.get("vigilance")
+    if vig and vig.get("max_color",1)>=3:
+        ph=" / ".join("%s %s"%(k,v) for k,v in vig.get("phenos",{}).items() if v in ("orange","rouge")) or vig.get("max_label","")
+        left=("warn", RED if vig["max_color"]>=4 else AMBER, "VIGILANCE %s (officiel)"%vig["max_label"].upper(), "Météo-France Var/13 : "+ph)
+    elif b.get("bms_est"): left=("warn",AMBER,"BMS PROBABLE : "+b["bms_est"].upper(),"Estimation modèle, confirme le bulletin officiel")
     else: left=("ok",GREEN,"PAS DE BMS ATTENDU","Estimation modèle, confirme sur Météo-France")
-    if b["raf_max"]>=30: right=("warn",AMBER,"ÉPISODE SIGNALÉ","%s demain, rafales %d kn  P(>30)=%s%%"%(dd,b["raf_max"],b["p_raf30_tom"]))
+    if b["raf_max"]>=30: right=("warn",AMBER,"ÉPISODE SIGNALÉ","%s %s, rafales %d nœuds — risque de dépasser 30 nœuds : %s%%"%(dd,jour,b["raf_max"],b["p_raf30_tom"]))
     else: right=("ok",GREEN,"PAS D'ÉPISODE MAJEUR","Aucun coup de vent notable prévu")
     reco=[("CE SOIR","Mouille à <b>%s</b> : le mieux protégé du %s ce soir, mer la plus calme."%(best,dd))]
-    if nav["color"]=="R": reco.append(("DEMAIN","Conditions musclées. Reste au mouillage protégé ou au port ; vent jusqu'à %d kn, rafales %d."%(b["vent_max"],b["raf_max"])))
-    elif nav["color"]=="A": reco.append(("DEMAIN","Sortie possible avec prudence ; surveille les rafales (%d kn)%s."%(b["raf_max"]," et le Cap Sicié" if b["cs_gust"]>b["raf_max"]+3 else "")))
-    else: reco.append(("DEMAIN","Belle fenêtre : vent modéré, mer maniable, bon créneau pour naviguer."))
+    if nav["color"]=="R": reco.append((JOUR,"Conditions musclées. Reste au mouillage protégé ou au port ; vent jusqu'à %d kn, rafales %d."%(b["vent_max"],b["raf_max"])))
+    elif nav["color"]=="A": reco.append((JOUR,"Sortie possible avec prudence ; surveille les rafales (%d kn)%s."%(b["raf_max"]," et le Cap Sicié" if b["cs_gust"]>b["raf_max"]+3 else "")))
+    else: reco.append((JOUR,"Belle fenêtre : vent modéré, mer maniable, bon créneau pour naviguer."))
     worst=None
     for c in b["consensus"]:
         if c["gust"] and (worst is None or c["gust"]>worst["gust"]): worst=c
@@ -209,7 +225,7 @@ def narrative(b):
                    "(secteur exposé de %s)."%(best, ba["to"], ba["jour"], ba["heure"], ba["dir"], best))
     else:
         moor_line="<b>Mouillage :</b> %s, bien protégé sur toute la période, pas de bascule nécessaire."%best
-    concl=["<b>Demain :</b> %s. %s"%(nav["status"].lower(),nav["reason"]), moor_line]
+    concl=["<b>%s :</b> %s. %s"%(jourC,nav["status"].lower(),nav["reason"]), moor_line]
     if b["raf_max"]>=34: concl.append("<b>Coup de vent :</b> rafales %d kn, mer %.1f m. <font color='#B3261E'><b>Prudence maximale</b></font>."%(b["raf_max"],b["mer_max"]))
     elif b["raf_max"]>=30: concl.append("<b>Rafales :</b> jusqu'à %d kn, surtout au Cap Sicié, vigilance."%b["raf_max"])
     else: concl.append("<b>Mer :</b> %.1f m, conditions maniables."%b["mer_max"])
@@ -219,14 +235,18 @@ def narrative(b):
 def synthese_telegram(b):
     nav=b["nav"];feu={"G":"🟢 FAVORABLE","A":"🟠 PRUDENCE","R":"🔴 DÉCONSEILLÉ"}[nav["color"]]
     bms=("🟠 BMS probable : "+b["bms_est"]) if b.get("bms_est") else "🟢 Pas de BMS attendu (estim.)"
-    lines=["🌊 BRIEFING IZENAH · %s"%b["generated"],
+    vig=b.get("vigilance")
+    vigline=("🟧 Vigilance officielle %s (Var/13) : %s"%(vig["max_label"], ", ".join("%s %s"%(k,v) for k,v in vig.get("phenos",{}).items()))) if (vig and vig.get("max_color",1)>=3) else None
+    JOUR=("AUJOURD'HUI" if b.get("target")=="today" else "DEMAIN")
+    hdr=("☀️ RAPPORT DU JOUR IZENAH · " if b.get("target")=="today" else "🌊 BRIEFING IZENAH · ")
+    lines=[hdr+b["generated"],
            "La Ciotat ↔ Les Embiez",
            "",
-           "%s · %s"%(bms, "Fiabilité %s"%b["confiance"].lower()),
+           "%s · %s"%(bms, "Fiabilité %s"%b["confiance"].lower())] + ([vigline] if vigline else []) + [
            "",
-           "▶ DEMAIN · Navigation %s"%feu,
-           "Vent %s, rafales %d kn · Mer %.1f m"%(b["dom_dir"],b["raf_max"],b["mer_max"]),
-           "P(rafales>30 kn) = %s%%"%b["p_raf30_tom"],
+           "▶ %s · Navigation %s"%(JOUR,feu),
+           "Vent %s, rafales %d nœuds · Mer %.1f m"%(b["dom_dir"],b["raf_max"],b["mer_max"]),
+           "Risque de rafales fortes (plus de 30 nœuds) : %s%% (%s)"%(b["p_raf30_tom"],p_word(b["p_raf30_tom"])),
            "⚓ Mouillage conseillé : %s"%b["mouillage_best"],
            "",
            "🔗 Officiel Météo-France (secteur) : "+MF_LINK,

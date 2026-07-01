@@ -4,15 +4,29 @@ Recupere multi-modeles + ensemble + vagues + CAPE (Open-Meteo) sur la zone
 La Ciotat <-> Les Embiez, calcule plages, consensus, probabilites, confiance,
 seuils Navigation, logique mouillages, detection orage. Sans cle API.
 """
-import urllib.request, urllib.parse, json, time, datetime, math
+import urllib.request, urllib.parse, json, time, datetime, math, os
+# Heure locale FR pour l'horodatage et la logique de date (runner GitHub en UTC sinon)
+os.environ.setdefault("TZ", "Europe/Paris")
+try:
+    time.tzset()
+except Exception:
+    pass
 
 # ---------------- Points ----------------
 PT_PRIMAIRE = ("La Ciotat", 43.175, 5.607)          # detail + graphe
 PT_CAP_SICIE = ("Cap Sicié", 43.043, 5.858)         # acceleration
 PT_MARINE   = (43.10, 5.70)                          # vagues (au large de la baie)
 MOUILLAGES = {
-    "La Ciotat":            dict(lat=43.165, lon=5.612, prot=(280,40),  expo=(90,200)),
-    "La Madrague (St-Cyr)": dict(lat=43.178, lon=5.700, prot=(60,170),  expo=(185,260), prot2=(300,340)),
+    # Exposition selon la direction D'OU vient le vent (0 = bien abrite .. 1 = plein expose).
+    # Regle locale confirmee :
+    #  - La Ciotat : refuge de mistral (NW/W/N), le Bec de l'Aigle protege l'W/SW ;
+    #    ouverte et dangereuse par vent d'Est/SE (le "coup d'Est" fait entrer la houle) et par le Sud.
+    #  - La Madrague (St-Cyr) : refuge de vent d'Est (NE/E/SE) ; DANGEREUSE par mistral (W/NW)
+    #    et par le Sud (baie des Lecques ouverte au S).
+    "La Ciotat": dict(lat=43.165, lon=5.612, exp8={
+        "N":0.15, "NE":0.15, "E":0.85, "SE":0.90, "S":0.70, "SW":0.45, "W":0.20, "NW":0.12}),
+    "La Madrague (St-Cyr)": dict(lat=43.178, lon=5.700, exp8={
+        "N":0.35, "NE":0.20, "E":0.12, "SE":0.28, "S":0.80, "SW":0.85, "W":0.90, "NW":0.92}),
 }
 MODELS = ["meteofrance_arome_france_hd", "ecmwf_ifs025", "icon_eu", "gfs_seamless"]
 
@@ -70,6 +84,15 @@ def in_sector(b, rng):
     if b is None: return False
     b%=360; lo,hi=rng[0]%360, rng[1]%360
     return (lo<=b<=hi) if lo<=hi else (b>=lo or b<=hi)
+def moor_comfort(e, raf_max, mer_max):
+    """Indice confort/risque 0..1 d'un mouillage. e = exposition directionnelle 0..1.
+    Geometrie d'abord ; rafales genent partout (plus si expose) ; houle surtout si expose."""
+    frac = 0.10 + 0.52*e
+    frac += min(0.30, max(0.0,(raf_max-18)/60.0)) * (0.55 + 0.45*e)
+    frac += min(0.25, max(0.0,(mer_max-0.6)/2.0)) * (0.25 + 0.75*e)
+    return max(0.05, min(0.97, frac))
+def moor_verdict(frac):
+    return "Très confortable" if frac<0.35 else ("Correct" if frac<0.6 else ("Inconfortable" if frac<0.78 else "À éviter"))
 def beaufort(kn):
     if kn is None: return 0
     t=[0,3,6,10,16,21,27,33,40,47,55,63]
@@ -109,7 +132,7 @@ def primary_series(hourly, var):
     return out
 
 # ---------------- Analyse principale ----------------
-def build_brief():
+def build_brief(target="demain"):
     now=datetime.datetime.now()
     fc=om_forecast(*PT_PRIMAIRE[1:], days=7)
     cap=om_forecast(*PT_CAP_SICIE[1:], days=2)
@@ -186,7 +209,7 @@ def build_brief():
         ))
 
     # --- demain (J+1) : fenetre journee pour Navigation ---
-    tomorrow=(now+datetime.timedelta(days=1)).date()
+    tomorrow=(now.date() if target=="today" else (now+datetime.timedelta(days=1)).date())
     idx_tom=[i for i in range(n) if times[i].date()==tomorrow]
     day_idx=[i for i in idx_tom if 8<=times[i].hour<=20]
     vent_max_moy = max((cross_stats(H,"wind_speed_10m",i)[2] or 0) for i in day_idx) if day_idx else 0
@@ -245,36 +268,28 @@ def build_brief():
     elif model_spread<10 and ens_std<7: conf="MODÉRÉE"
     else: conf="FAIBLE"
 
-    # --- mouillages ---
+    # --- mouillages : confort/risque a partir de l'exposition directionnelle (toutes directions) ---
     moor=[]
     for name,info in MOUILLAGES.items():
-        protected = in_sector(deg_from(dom_dir), info["prot"]) or in_sector(deg_from(dom_dir), info.get("prot2",(999,999)))
-        exposed   = in_sector(deg_from(dom_dir), info["expo"])
-        if protected:
-            base=0.12 + min(0.30, max(0,(raf_max-18)/60.0))     # protege : surtout les rafales genent
-        elif exposed:
-            base=0.62 + min(0.30, max(0,(mer_max-0.6)/2.0))     # expose : la houle entre
-        else:
-            base=0.42 + min(0.20, max(0,(vent_max_moy-12)/40.0))
-        if name.startswith("La Ciotat") and dom_dir in ("NW","N","W"): base-=0.05  # reference Mistral
-        frac=max(0.05,min(0.95,base))
-        verdict = "Très confortable" if frac<0.35 else ("Correct" if frac<0.6 else ("Inconfortable" if frac<0.78 else "À éviter"))
-        moor.append(dict(name=name, frac=round(frac,2), verdict=verdict,
-                         protected=protected, exposed=exposed))
+        e=info["exp8"].get(dom_dir,0.5)
+        frac=moor_comfort(e, raf_max, mer_max)
+        moor.append(dict(name=name, frac=round(frac,2), verdict=moor_verdict(frac),
+                         protected=(e<=0.33), exposed=(e>=0.60), expo_dir=round(e,2)))
     best=min(moor, key=lambda m:m["frac"])["name"]
-    # bascule : le vent entre-t-il dans le secteur EXPOSÉ du meilleur mouillage dans les 48 h ?
+    # bascule : dans les 48 h, le meilleur mouillage devient-il expose alors que l'autre est abrite ?
     bascule=None
-    exposed_sec=MOUILLAGES[best]["expo"]
-    other=[k for k in MOUILLAGES if k!=best][0]
+    best_info=MOUILLAGES[best]; other=[k for k in MOUILLAGES if k!=best][0]; other_info=MOUILLAGES[other]
     for i in range(n):
         if not (0 <= (times[i]-now).total_seconds() <= 48*3600): continue
         dvals=[series(H,"wind_direction_10m",m)[i] for m in MODELS
                if series(H,"wind_direction_10m",m) and i<len(series(H,"wind_direction_10m",m)) and series(H,"wind_direction_10m",m)[i] is not None]
         dd=avg(dvals); _,_,vmean=cross_stats(H,"wind_speed_10m",i)
-        if dd is not None and (vmean or 0)>=10 and in_sector(dd, exposed_sec):
+        if dd is None or (vmean or 0)<12: continue
+        d8=dir8(dd); e_best=best_info["exp8"].get(d8,0.5); e_other=other_info["exp8"].get(d8,0.5)
+        if e_best>=0.60 and e_other<=0.40 and (e_best-e_other)>=0.30:
             jour=("aujourd'hui" if times[i].date()==now.date()
                   else ("demain" if times[i].date()==(now+datetime.timedelta(days=1)).date() else fr_jour(times[i].date())))
-            bascule=dict(to=other, jour=jour, heure=times[i].strftime("%Hh"), dir=dir8(dd)); break
+            bascule=dict(to=other, jour=jour, heure=times[i].strftime("%Hh"), dir=d8); break
 
     # --- consensus J+2..J+4 (modeles globaux) ---
     longmodels=["ecmwf_ifs025","icon_eu","gfs_seamless"]
@@ -330,10 +345,17 @@ def build_brief():
     # les rafales 34-40 kn = coup de vent. On declenche sur les rafales ET le vent max (pas la moyenne lissee).
     bms_est = ("coup de vent" if (raf_max >= 40 or vent_max_moy >= 34)
                else ("grand frais à coup de vent" if (raf_max >= 34 or vent_max_moy >= 28) else None))
+    try:
+        import izenah_vigilance
+        vigilance = izenah_vigilance.fetch_vigilance()
+    except Exception:
+        vigilance = None
 
     brief=dict(
         generated=fr_date(now),
+        target=target,
         bms_est=bms_est,
+        vigilance=vigilance,
         i_now=i_now, n=n,
         chart=chart, detail=detail,
         nav=dict(color=fc_color, status=nav_status, reason=nav_reason),
