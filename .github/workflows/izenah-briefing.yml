@@ -1,0 +1,32 @@
+name: Izenah - briefing du soir
+on:
+  schedule:
+    - cron: '30 16 * * *'   # ~18h30 heure de Paris (ete) ; ~17h30 en hiver
+  workflow_dispatch:        # bouton "Run workflow" pour tester a la demande
+permissions:
+  contents: write
+concurrency:
+  group: izenah-state
+  cancel-in-progress: false
+jobs:
+  briefing:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install -r requirements.txt
+      - name: Generer et envoyer le briefing
+        env:
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: python run_briefing.py
+      - name: Archiver le PDF et l'etat
+        run: |
+          git config user.name "izenah-bot"
+          git config user.email "izenah-bot@users.noreply.github.com"
+          git add archives bms_state.json 2>/dev/null || true
+          git diff --cached --quiet || git commit -m "briefing du jour"
+          git pull --rebase --autostash origin "${{ github.ref_name }}" || true
+          git push || true
