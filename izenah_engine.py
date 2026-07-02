@@ -70,9 +70,12 @@ def om_ensemble(lat, lon, days=12):
              hourly="wind_speed_10m,wind_gusts_10m")
     return fetch("https://ensemble-api.open-meteo.com/v1/ensemble?" + urllib.parse.urlencode(q))
 
-def om_marine(lat, lon, days=5):
+def om_marine(lat, lon, days=8):
+    # houle DECOMPOSEE : mer de vent (tombe avec le vent) vs houle residuelle
+    # (continue d'entrer au mouillage apres le coup de vent) — decisif pour le confort de nuit
     q = dict(latitude=lat, longitude=lon, timezone="Europe/Paris", forecast_days=days,
-             hourly="wave_height,wave_direction,wave_period,sea_surface_temperature")
+             hourly="wave_height,wave_direction,wave_period,wind_wave_height,"
+                    "swell_wave_height,swell_wave_direction,swell_wave_period,sea_surface_temperature")
     return fetch("https://marine-api.open-meteo.com/v1/marine?" + urllib.parse.urlencode(q))
 
 # ---------------- Helpers ----------------
@@ -177,10 +180,10 @@ def primary_series(hourly, var):
 # ---------------- Analyse principale ----------------
 def build_brief(target="demain"):
     now=datetime.datetime.now()
-    fc=om_forecast(*PT_PRIMAIRE[1:], days=7)
+    fc=om_forecast(*PT_PRIMAIRE[1:], days=10)
     cap=om_forecast(*PT_CAP_SICIE[1:], days=2)
     ens=om_ensemble(*PT_PRIMAIRE[1:], days=12)
-    mar=om_marine(*PT_MARINE, days=5)
+    mar=om_marine(*PT_MARINE, days=8)
 
     H=fc["hourly"]; times=[datetime.datetime.fromisoformat(t) for t in H["time"]]
     n=len(times)
@@ -189,6 +192,8 @@ def build_brief(target="demain"):
     # marine aligne par index (memes timezones, pas horaire)
     MH=mar["hourly"]; wav_h=MH["wave_height"]; wav_d=MH["wave_direction"]; wav_p=MH["wave_period"]
     wav_sst=MH.get("sea_surface_temperature",[])
+    swl_h=MH.get("swell_wave_height",[]); swl_d=MH.get("swell_wave_direction",[])
+    wwv_h=MH.get("wind_wave_height",[])
 
     arome_dir=primary_series(H,"wind_direction_10m")
     arome_cloud=primary_series(H,"cloud_cover")
@@ -353,7 +358,43 @@ def build_brief(target="demain"):
                   else ("demain" if times[i].date()==(now+datetime.timedelta(days=1)).date() else fr_jour(times[i].date())))
             bascule=dict(to=other, jour=jour, heure=times[i].strftime("%Hh"), dir=d8); break
 
-    # --- consensus J+2..J+4 (modeles globaux) ---
+    # --- mouillages NUIT PAR NUIT : ou dormir ce soir, ou dormir demain soir ---
+    def moor_comfort_hour(info, i):
+        """Confort/risque du mouillage a l'heure i : vent (rafales) + mer totale selon
+        l'exposition au vent, PLUS la houle residuelle (swell) qui entre au mouillage
+        meme apres la tombee du vent, selon l'exposition a SA direction."""
+        dd=arome_dir[i]
+        e_w=info["exp8"].get(dir8(dd),0.5) if dd is not None else 0.5
+        _,g,_=cross_stats(H,"wind_gusts_10m",i); g=g or 0
+        wh=wav_h[i] if i<len(wav_h) and wav_h[i] is not None else 0
+        frac=moor_comfort(e_w,g,wh)
+        sh=swl_h[i] if i<len(swl_h) and swl_h[i] is not None else 0
+        sd=swl_d[i] if i<len(swl_d) and swl_d[i] is not None else None
+        if sh>=0.4 and sd is not None:
+            e_s=info["exp8"].get(dir8(sd),0.5)
+            frac=min(0.97, frac+min(0.25,(sh-0.3)/2.0)*e_s)
+        return frac
+    def night_idx(d0):
+        a=datetime.datetime.combine(d0, datetime.time(20)); b=a+datetime.timedelta(hours=12)
+        return [i for i in range(n) if a<=times[i]<=b]
+    nights=[]
+    for lbl,d0 in (("cette nuit", now.date()), ("demain nuit", now.date()+datetime.timedelta(days=1))):
+        idxN=night_idx(d0)
+        if not idxN: continue
+        per={}
+        for name,info in MOUILLAGES.items():
+            per[name]=round(max(moor_comfort_hour(info,i) for i in idxN),2)
+        bestN=min(per,key=per.get)
+        nights.append(dict(label=lbl, best=bestN, frac=per[bestN],
+                           verdict=moor_verdict(per[bestN]), per=per,
+                           port=(per[bestN]>=0.78)))  # aucun abri serein -> port conseille
+    moor_change=None
+    if len(nights)==2 and nights[0]["best"]!=nights[1]["best"]:
+        moor_change=dict(frm=nights[0]["best"], to=nights[1]["best"],
+                         quand=(("%s vers %s (vent passant %s)"%(bascule["jour"],bascule["heure"],bascule["dir"]))
+                                if bascule and bascule.get("to")==nights[1]["best"] else "demain dans la journée"))
+
+    # --- consensus J+2..J+5 (modeles globaux) ---
     longmodels=["ecmwf_ifs025","icon_eu","gfs_seamless"]
     def cross_long(var,i):
         out=[]
@@ -362,7 +403,7 @@ def build_brief(target="demain"):
             if s and i<len(s) and s[i] is not None: out.append(s[i])
         return out
     consensus=[]
-    for dd in range(2,5):
+    for dd in range(2,6):
         day=(now+datetime.timedelta(days=dd)).date()
         idx=[i for i in range(n) if times[i].date()==day and 8<=times[i].hour<=18]
         if not idx: continue
@@ -470,6 +511,7 @@ def build_brief(target="demain"):
         cape_max=round(cape_max), cs_gust=round(cs_gust),
         p_raf30_tom=p_raf30_tom,
         mouillages=moor, mouillage_best=best, mouillage_bascule=bascule,
+        nuits=nights, moor_change=moor_change,
         orage=("élevé" if cape_max>=800 else ("modéré" if cape_max>=CAPE_ORAGE else "faible")),
         consensus=consensus, tendance=tendance,
     )

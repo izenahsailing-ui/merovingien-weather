@@ -211,7 +211,9 @@ def narrative(b):
     p30=("%d%%"%b["p_raf30_tom"]) if b.get("p_raf30_tom") is not None else "n/d"
     if b["raf_max"]>=30: right=("warn",AMBER,"ÉPISODE SIGNALÉ","%s %s, rafales %d nœuds — risque de dépasser 30 nœuds : %s"%(dd,jour,b["raf_max"],p30))
     else: right=("ok",GREEN,"PAS D'ÉPISODE MAJEUR","Aucun coup de vent notable prévu")
-    reco=[("CE SOIR","Mouille à <b>%s</b> : le mieux protégé du %s ce soir, mer la plus calme."%(best,dd))]
+    nuits=b.get("nuits") or []
+    best_soir=nuits[0]["best"] if nuits else best
+    reco=[("CE SOIR","Mouille à <b>%s</b> : le mieux protégé cette nuit (vent et houle résiduelle comprises)."%best_soir)]
     fen=b.get("fenetre")
     if nav["color"]=="R":
         txt="Conditions musclées. Reste au mouillage protégé ou au port ; vent jusqu'à %d kn, rafales %d."%(b["vent_max"],b["raf_max"])
@@ -231,12 +233,14 @@ def narrative(b):
         if c["gust"] and (worst is None or c["gust"]>worst["gust"]): worst=c
     if worst and worst["gust"] and worst["gust"]>=30: reco.append(("ANTICIPE","%s : %s, rafales jusqu'à %d kn, prévois un abri très protégé."%(worst["day"],worst["force"],worst["gust"])))
     elif b["tendance"]: lab,fr=b["tendance"][0];reco.append(("ANTICIPE","%s : %d%%, garde un œil sur les prochains runs."%(lab,round(fr*100))))
-    ba=b.get("mouillage_bascule")
-    if ba:
+    ba=b.get("mouillage_bascule");mc=b.get("moor_change")
+    if mc:
+        moor_line="<b>Mouillage :</b> %s cette nuit, puis <b>change vers %s</b> %s."%(mc["frm"],mc["to"],mc["quand"])
+    elif ba:
         moor_line=("<b>Mouillage :</b> %s ce soir ; bascule vers <b>%s</b> %s vers %s, quand le vent passe au %s "
-                   "(secteur exposé de %s)."%(best, ba["to"], ba["jour"], ba["heure"], ba["dir"], best))
+                   "(secteur exposé de %s)."%(best_soir, ba["to"], ba["jour"], ba["heure"], ba["dir"], best_soir))
     else:
-        moor_line="<b>Mouillage :</b> %s, bien protégé sur toute la période, pas de bascule nécessaire."%best
+        moor_line="<b>Mouillage :</b> %s, bien protégé sur toute la période (houle résiduelle comprise), pas de bascule nécessaire."%best_soir
     concl=["<b>%s :</b> %s. %s"%(jourC,nav["status"].lower(),nav["reason"])]
     if b.get("contexte"): concl.append("<b>Situation :</b> %s."%b["contexte"])
     concl.append(moor_line)
@@ -269,7 +273,15 @@ def synthese_telegram(b):
     if fen and fen["kind"]=="ALL": lines.append("🟢 Favorable toute la journée")
     elif fen and fen["kind"]=="G": lines.append("🟢 Meilleure fenêtre de sortie : %s à %s"%(fen["frm"],fen["to"]))
     elif fen and fen["kind"]=="A": lines.append("🟠 Créneau le plus maniable : %s à %s"%(fen["frm"],fen["to"]))
-    lines+=["⚓ Mouillage conseillé : %s"%b["mouillage_best"],
+    nuits=b.get("nuits") or []
+    if len(nuits)==2:
+        mc=b.get("moor_change")
+        def _n(nu): return "%s (%s)"%(nu["best"],nu["verdict"].lower()) if not nu.get("port") else "%s au mieux — port conseillé"%nu["best"]
+        mline="⚓ Cette nuit : %s · Demain nuit : %s"%(_n(nuits[0]),_n(nuits[1]))
+        if mc: mline+="\n⚠️ Change de mouillage %s"%mc["quand"]
+    else:
+        mline="⚓ Mouillage conseillé : %s"%b["mouillage_best"]
+    lines+=[mline,
            "",
            "🔗 Officiel Météo-France (secteur) : "+MF_LINK,
            "Détail complet dans le PDF ci-joint."]
@@ -325,7 +337,19 @@ def render(b, out):
     while len(ms)<2: ms.append(ms[-1])
     mrow=Table([[moor_card(ms[0],cardw),"",moor_card(ms[1],cardw)]],colWidths=[(W-gp)/2,gp,(W-gp)/2])
     mrow.setStyle(TableStyle([("LEFTPADDING",(0,0),(-1,-1),0),("RIGHTPADDING",(0,0),(-1,-1),0),("TOPPADDING",(0,0),(-1,-1),0),("BOTTOMPADDING",(0,0),(-1,-1),0),("VALIGN",(0,0),(-1,-1),"TOP")]))
-    story+=[mrow,Spacer(1,4)]
+    story+=[mrow,Spacer(1,2)]
+    nuits=b.get("nuits") or []
+    if len(nuits)==2:
+        mc=b.get("moor_change")
+        if mc: chg="<font color='#B5740F'><b>Change de mouillage %s.</b></font>"%mc["quand"]
+        else: chg="Pas de changement de mouillage nécessaire."
+        def _np(nu):
+            base="%s (<font color='%s'>%s</font>)"%(nu["best"],vcol_of(nu["frac"]),nu["verdict"].lower())
+            return base+(" — <font color='#C02718'><b>port conseillé</b></font>" if nu.get("port") else "")
+        nline="<b>Où dormir — cette nuit :</b> %s &nbsp;·&nbsp; <b>demain nuit :</b> %s — %s"%(_np(nuits[0]),_np(nuits[1]),chg)
+        story+=[Paragraph(nline,body),Spacer(1,4)]
+    else:
+        story+=[Spacer(1,2)]
     rt=S("rt",fontName="Helvetica-Bold",fontSize=8,textColor=colors.white,leading=10)
     rb=S("rb",fontName="Helvetica",fontSize=8,textColor=colors.white,leading=10.6)
     def gpill(txt):
@@ -368,7 +392,7 @@ def render(b, out):
     story+=[Paragraph("La <b>plage</b> bleutée montre le vent mini et maxi entre modèles : plus elle est étroite, plus c'est fiable. Quadrillage vertical = chaque heure. Zone grisée = la nuit. Échelle de droite = la force (Beaufort), en second plan.",small),Spacer(1,8)]
     # Consensus
     if b["consensus"]:
-        story+=[secheader("Les prochains jours",sub="consensus des modèles, J+2 à J+4",tab=STEEL),Spacer(1,3)]
+        story+=[secheader("Les prochains jours",sub="consensus des modèles, J+2 à J+5",tab=STEEL),Spacer(1,3)]
         c2w=[10*mm,28*mm,W-(10+28+34+7+26+24)*mm,34*mm,7*mm,26*mm,24*mm]
         h2=[Paragraph("Dir.",cH),Paragraph("Jour",cH),Paragraph("Vent (plage)",cH),Paragraph("Rafales",cH),Paragraph("Houle",cH),"",Paragraph("Confiance",cH)]
         r2=[h2]
