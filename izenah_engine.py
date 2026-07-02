@@ -422,9 +422,11 @@ def build_brief(target="demain"):
         hdir=dir8(avg([wav_d[i] for i in idx if i<len(wav_d) and wav_d[i] is not None])) if idx else "?"
         sp=avg(spreads2) or 0
         pct_c=int(round(100*max(0.0,min(1.0,1.15-1.1*sp))))
+        gmax_day=round(max(gusts)) if gusts else None
         consensus.append(dict(day=fr_jour(day), wdir=dir8(avg(dirs)) if dirs else "?",
-            vmin=vmin, vmax=vmax, force=force, gust=round(max(gusts)) if gusts else None,
+            vmin=vmin, vmax=vmax, force=force, gust=gmax_day,
             houle_dir=hdir, houle=("%.1f m"%mer).replace(".",",") if mer is not None else "n/d",
+            nav=feu(vmax, gmax_day or 0, mer or 0, 0),
             conf_pct=pct_c, conf="Élevée"))
     # coherence : la confiance ne peut pas AUGMENTER en s'eloignant dans le temps
     prev=conf_pct
@@ -495,11 +497,17 @@ def build_brief(target="demain"):
         vigilance = izenah_vigilance.fetch_vigilance()
     except Exception:
         vigilance = None
+    try:
+        import izenah_bms_officiel
+        bms_off = izenah_bms_officiel.fetch_bms()
+    except Exception:
+        bms_off = None
 
     brief=dict(
         generated=fr_date(now),
         target=target,
         bms_est=bms_est,
+        bms_officiel=bms_off,
         vigilance=vigilance,
         i_now=i_now, n=n,
         chart=chart, detail=detail,

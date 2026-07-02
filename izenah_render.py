@@ -96,8 +96,9 @@ class AlertStrip(Flowable):
         c=s.canv;gap=5*mm;cw=(s.width-gap)/2;h=s.h
         for i,(k,col,t1,t2) in enumerate(s.cards):
             x=i*(cw+gap);c.setFillColor(col);c.roundRect(x,0,cw,h,3*mm,fill=1,stroke=0);s._ic(c,x+8*mm,h/2,k,col)
-            c.setFillColor(colors.white);c.setFont("Helvetica-Bold",8.6);c.drawString(x+14.5*mm,h-6*mm,t1)
-            c.setFont("Helvetica",7.2);c.drawString(x+14.5*mm,4.0*mm,t2[:64])
+            maxw=cw-16.5*mm
+            c.setFillColor(colors.white);c.setFont("Helvetica-Bold",8.6);c.drawString(x+14.5*mm,h-6*mm,fit_text(t1,"Helvetica-Bold",8.6,maxw))
+            c.setFont("Helvetica",7.2);c.drawString(x+14.5*mm,4.0*mm,fit_text(t2,"Helvetica",7.2,maxw))
 class StatusPanel(Flowable):
     def __init__(s,width,kind,status,col,reason,legend,h=22*mm):
         Flowable.__init__(s);s.width=width;s.kind=kind;s.status=status;s.col=col;s.reason=reason;s.legend=legend;s.h=h
@@ -106,10 +107,12 @@ class StatusPanel(Flowable):
         c=s.canv;W=s.width;H=s.h
         c.setFillColor(HexColor("#F7FAFC"));c.setStrokeColor(LINE);c.setLineWidth(0.7);c.roundRect(0,0,W,H,4*mm,fill=1,stroke=1)
         c.setFillColor(s.col);c.rect(0,3*mm,2.6*mm,H-6*mm,fill=1,stroke=0)
-        c.setFillColor(GREY);c.setFont("Helvetica-Bold",7.3);c.drawString(8*mm,H-6*mm,s.kind.upper())
+        c.setFillColor(GREY);c.setFont("Helvetica-Bold",7.3);c.drawString(8*mm,H-6*mm,fit_text(s.kind.upper(),"Helvetica-Bold",7.3,W-14*mm))
         cy=H-12*mm;c.setFillColor(s.col);c.circle(10*mm,cy+0.6*mm,2.3*mm,fill=1,stroke=0)
-        c.setFont("Helvetica-Bold",12.5);c.drawString(14.3*mm,cy-1.4*mm,s.status)
-        c.setFillColor(GREY);c.setFont("Helvetica",7.3);c.drawString(8*mm,H-17*mm,s.reason[:74])
+        fs=12.5
+        while fs>8 and stringWidth(s.status,"Helvetica-Bold",fs)>W-18*mm: fs-=0.5
+        c.setFont("Helvetica-Bold",fs);c.drawString(14.3*mm,cy-1.4*mm,fit_text(s.status,"Helvetica-Bold",fs,W-18*mm))
+        c.setFillColor(GREY);c.setFont("Helvetica",7.3);c.drawString(8*mm,H-17*mm,fit_text(s.reason,"Helvetica",7.3,W-12*mm))
         c.setFont("Helvetica",6.7);lx=8*mm
         for txt,cc in s.legend:
             c.setFillColor(HexColor(cc));c.circle(lx+1*mm,2.6*mm,1*mm,fill=1,stroke=0)
@@ -188,6 +191,13 @@ PILLCOL={"Élevée":GREEN,"Modérée":AMBER,"Faible":RED}
 def vcol_of(f):return CGd if f<0.35 else (CAd if f<0.6 else CRd)
 def verdict_of(f):return "Très confortable" if f<0.35 else ("Correct" if f<0.6 else ("Inconfortable" if f<0.78 else "À éviter"))
 
+def fit_text(txt, font, size, maxw):
+    """Tronque proprement (…) pour tenir dans maxw points — plus de texte hors cadre."""
+    if not txt: return ""
+    if stringWidth(txt,font,size)<=maxw: return txt
+    while txt and stringWidth(txt+"…",font,size)>maxw: txt=txt[:-1]
+    return txt+"…"
+
 def p_word(p):
     try: p=int(round(float(p)))
     except: return ""
@@ -202,12 +212,17 @@ def narrative(b):
     JOUR=("AUJOURD'HUI" if b.get("target")=="today" else "DEMAIN")
     jour=("aujourd'hui" if b.get("target")=="today" else "demain")
     jourC=("Aujourd'hui" if b.get("target")=="today" else "Demain")
-    vig=b.get("vigilance")
-    if vig and vig.get("max_color",1)>=3:
+    vig=b.get("vigilance");bo=b.get("bms_officiel")
+    if bo and bo.get("actif_zone"):
+        left=("warn",RED,"BMS OFFICIEL : "+bo["avis"].replace("Avis de ","").upper(),
+              "%s — jusqu'à %s"%(bo.get("zone_texte") or bo.get("zone_titre",""),bo.get("fin","")))
+    elif vig and vig.get("max_color",1)>=3:
         ph=" / ".join("%s %s"%(k,v) for k,v in vig.get("phenos",{}).items() if v in ("orange","rouge")) or vig.get("max_label","")
         left=("warn", RED if vig["max_color"]>=4 else AMBER, "VIGILANCE %s (officiel)"%vig["max_label"].upper(), "Météo-France Var/13 : "+ph)
+    elif bo and not bo.get("actif_zone"):
+        left=("warn",AMBER,"BMS EN MÉDITERRANÉE (pas ta zone)","%s — reste attentif au bulletin"%bo["avis"])
     elif b.get("bms_est"): left=("warn",AMBER,"BMS PROBABLE : "+b["bms_est"].upper(),"Estimation modèle, confirme le bulletin officiel")
-    else: left=("ok",GREEN,"PAS DE BMS ATTENDU","Estimation modèle, confirme sur Météo-France")
+    else: left=("ok",GREEN,"PAS DE BMS EN COURS","Bulletin officiel Météo-France vérifié à la génération")
     p30=("%d%%"%b["p_raf30_tom"]) if b.get("p_raf30_tom") is not None else "n/d"
     if b["raf_max"]>=30: right=("warn",AMBER,"ÉPISODE SIGNALÉ","%s %s, rafales %d nœuds — risque de dépasser 30 nœuds : %s"%(dd,jour,b["raf_max"],p30))
     else: right=("ok",GREEN,"PAS D'ÉPISODE MAJEUR","Aucun coup de vent notable prévu")
@@ -252,7 +267,15 @@ def narrative(b):
 
 def synthese_telegram(b):
     nav=b["nav"];feu={"G":"🟢 FAVORABLE","A":"🟠 PRUDENCE","R":"🔴 DÉCONSEILLÉ"}[nav["color"]]
-    bms=("🟠 BMS probable : "+b["bms_est"]) if b.get("bms_est") else "🟢 Pas de BMS attendu (estim.)"
+    bo=b.get("bms_officiel")
+    if bo and bo.get("actif_zone"):
+        bms="🟥 BMS OFFICIEL Météo-France : %s\n%s (jusqu'à %s)"%(bo["avis"],bo.get("zone_texte",""),bo.get("fin",""))
+    elif bo:
+        bms="🟠 BMS en Méditerranée (hors ta zone) : "+bo["avis"]
+    elif b.get("bms_est"):
+        bms="🟠 BMS probable : "+b["bms_est"]
+    else:
+        bms="🟢 Pas de BMS en cours (bulletin officiel vérifié)"
     vig=b.get("vigilance")
     vigline=("🟧 Vigilance officielle %s (Var/13) : %s"%(vig["max_label"], ", ".join("%s %s"%(k,v) for k,v in vig.get("phenos",{}).items()))) if (vig and vig.get("max_color",1)>=3) else None
     JOUR=("AUJOURD'HUI" if b.get("target")=="today" else "DEMAIN")
@@ -392,7 +415,7 @@ def render(b, out):
     story+=[Paragraph("La <b>plage</b> bleutée montre le vent mini et maxi entre modèles : plus elle est étroite, plus c'est fiable. Quadrillage vertical = chaque heure. Zone grisée = la nuit. Échelle de droite = la force (Beaufort), en second plan.",small),Spacer(1,8)]
     # Consensus
     if b["consensus"]:
-        story+=[secheader("Les prochains jours",sub="consensus des modèles, J+2 à J+5",tab=STEEL),Spacer(1,3)]
+        story+=[secheader("Les prochains jours",sub="consensus des modèles, J+2 à J+5 · pastille = feu navigation",tab=STEEL),Spacer(1,3)]
         c2w=[10*mm,28*mm,W-(10+28+34+7+26+24)*mm,34*mm,7*mm,26*mm,24*mm]
         h2=[Paragraph("Dir.",cH),Paragraph("Jour",cH),Paragraph("Vent (plage)",cH),Paragraph("Rafales",cH),Paragraph("Houle",cH),"",Paragraph("Confiance",cH)]
         r2=[h2]
@@ -400,8 +423,10 @@ def render(b, out):
             st=S("p",fontName="Helvetica-Bold",fontSize=7.4,textColor=colors.white,alignment=1)
             tb=Table([[Paragraph(txt,st)]],colWidths=[20*mm],rowHeights=[5.4*mm])
             tb.setStyle(TableStyle([("BACKGROUND",(0,0),(-1,-1),col),("ROUNDEDCORNERS",[3,3,3,3]),("VALIGN",(0,0),(-1,-1),"MIDDLE"),("TOPPADDING",(0,0),(-1,-1),0),("BOTTOMPADDING",(0,0),(-1,-1),0)]));return tb
+        NAVDOT={"G":CGd,"A":CAd,"R":CRd}
         for c in b["consensus"]:
-            r2.append([Arrow(c["wdir"],6*mm,MARINE),Paragraph(c["day"],cL),ventcell("%d à %d kn"%(c["vmin"],c["vmax"]),c["force"],wind_hex(c["vmax"],0)),
+            dayc=Paragraph("<font color='%s'><b>●</b></font> %s"%(NAVDOT.get(c.get("nav","G"),CAd),c["day"]),cL)
+            r2.append([Arrow(c["wdir"],6*mm,MARINE),dayc,ventcell("%d à %d kn"%(c["vmin"],c["vmax"]),c["force"],wind_hex(c["vmax"],0)),
                        colcell((str(c["gust"])+" kn") if c["gust"] else "n/d",gust_hex(c["gust"] or 0,0)),Arrow(c["houle_dir"],5.6*mm,TEAL),Paragraph(c["houle"],cC),pillP(c["conf"],PILLCOL.get(c["conf"],AMBER))])
         t2=Table(r2,colWidths=c2w,rowHeights=[6.2*mm]+[10*mm]*len(b["consensus"]))
         t2.setStyle(TableStyle([("BACKGROUND",(0,0),(-1,0),STEEL),("ROUNDEDCORNERS",[4,4,4,4]),("SPAN",(4,0),(5,0)),("ROWBACKGROUNDS",(0,1),(-1,-1),[colors.white,ZEBRA]),("VALIGN",(0,0),(-1,-1),"MIDDLE"),("LINEBELOW",(0,1),(-1,-2),0.4,LINE),("LEFTPADDING",(1,1),(1,-1),3),("TOPPADDING",(0,0),(-1,-1),2),("BOTTOMPADDING",(0,0),(-1,-1),2)]))

@@ -79,6 +79,29 @@ def run(send=True):
                 if tok and chat:
                     T.send_message(tok, chat, vmsg)
             json.dump({"sig": vsig, "at": now.isoformat()}, open(vstate, "w"))
+    # --- BMS COTE OFFICIEL Meteo-France (sans cle, prioritaire sur l'estimation) ---
+    try:
+        import izenah_bms_officiel
+        bo = izenah_bms_officiel.fetch_bms()
+    except Exception:
+        bo = None
+    if bo and bo.get("actif_zone"):
+        bstate_p = os.path.join(BASE, "bmsoff_state.json")
+        prev = json.load(open(bstate_p)) if os.path.exists(bstate_p) else {}
+        if prev.get("sig") != bo["sig"]:
+            bmsg = ("🟥 BMS CÔTE OFFICIEL · IZENAH\n"
+                    "Météo-France émet : %s\n"
+                    "%s\n%s\n"
+                    "Valable jusqu'à %s.\n\n"
+                    "⚓ Anticipe : La Ciotat par Mistral, La Madrague par vent d'Est, port si les deux sont exposés.\n"
+                    "🔗 https://meteofrance.com/meteo-marine/marseille-la-ciotat/MICROZONE-30"
+                    % (bo["avis"], bo.get("zone_titre",""), bo.get("zone_texte",""), bo.get("fin","")))
+            if send:
+                tok, chat = T.load_token(), T.load_chat()
+                if tok and chat:
+                    T.send_message(tok, chat, bmsg)
+            json.dump({"sig": bo["sig"], "at": now.isoformat()}, open(bstate_p, "w"))
+
     # --- Surveillance modele (coup de vent imminent) ---
     fc = E.om_forecast(*E.PT_PRIMAIRE[1:], days=3)
     cap = E.om_forecast(*E.PT_CAP_SICIE[1:], days=3)
