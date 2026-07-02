@@ -225,10 +225,17 @@ def narrative(b):
     else: left=("ok",GREEN,"PAS DE BMS EN COURS","Bulletin officiel Météo-France vérifié à la génération")
     p30=("%d%%"%b["p_raf30_tom"]) if b.get("p_raf30_tom") is not None else "n/d"
     if b["raf_max"]>=30: right=("warn",AMBER,"ÉPISODE SIGNALÉ","%s %s, rafales %d nœuds — risque de dépasser 30 nœuds : %s"%(dd,jour,b["raf_max"],p30))
+    elif bo and bo.get("actif_zone"): right=("ok",GREEN,"ACCALMIE %s (MODÈLES)"%jour.upper(),"Le BMS court encore, mais %s rafales max %d nœuds"%(jour,b["raf_max"]))
     else: right=("ok",GREEN,"PAS D'ÉPISODE MAJEUR","Aucun coup de vent notable prévu")
     nuits=b.get("nuits") or []
     best_soir=nuits[0]["best"] if nuits else best
-    reco=[("CE SOIR","Mouille à <b>%s</b> : le mieux protégé cette nuit (vent et houle résiduelle comprises)."%best_soir)]
+    reco=[]
+    if bo and bo.get("actif_zone"):
+        reco.append(("BMS EN COURS","Avis officiel Météo-France valable jusqu'à <b>%s</b> : %s Reste au port ou au mouillage le plus sûr tant qu'il court."%(bo.get("fin","?"),bo.get("zone_texte",""))))
+    if nuits and nuits[0].get("port"):
+        reco.append(("CE SOIR","Aucun des deux mouillages n'est serein cette nuit : <b>préfère le port</b> (au mieux %s, %s)."%(best_soir,nuits[0]["verdict"].lower())))
+    else:
+        reco.append(("CE SOIR","Mouille à <b>%s</b> : le mieux protégé cette nuit (vent et houle résiduelle comprises)."%best_soir))
     fen=b.get("fenetre")
     if nav["color"]=="R":
         txt="Conditions musclées. Reste au mouillage protégé ou au port ; vent jusqu'à %d kn, rafales %d."%(b["vent_max"],b["raf_max"])
@@ -256,7 +263,10 @@ def narrative(b):
                    "(secteur exposé de %s)."%(best_soir, ba["to"], ba["jour"], ba["heure"], ba["dir"], best_soir))
     else:
         moor_line="<b>Mouillage :</b> %s, bien protégé sur toute la période (houle résiduelle comprise), pas de bascule nécessaire."%best_soir
-    concl=["<b>%s :</b> %s. %s"%(jourC,nav["status"].lower(),nav["reason"])]
+    concl=[]
+    if bo and bo.get("actif_zone"):
+        concl.append("<b><font color='#B3261E'>BMS officiel :</font></b> %s — %s Jusqu'à %s."%(bo["avis"],bo.get("zone_texte",""),bo.get("fin","?")))
+    concl.append("<b>%s :</b> %s. %s"%(jourC,nav["status"].lower(),nav["reason"]))
     if b.get("contexte"): concl.append("<b>Situation :</b> %s."%b["contexte"])
     concl.append(moor_line)
     if b["raf_max"]>=34: concl.append("<b>Coup de vent :</b> rafales %d kn, mer %.1f m. <font color='#B3261E'><b>Prudence maximale</b></font>."%(b["raf_max"],b["mer_max"]))
@@ -282,10 +292,10 @@ def synthese_telegram(b):
     hdr=("☀️ RAPPORT DU JOUR IZENAH · " if b.get("target")=="today" else "🌊 BRIEFING IZENAH · ")
     fiab=("Fiabilité %s (%d%%)"%(b["confiance"].lower(),b["confiance_pct"])) if b.get("confiance_pct") is not None else ("Fiabilité %s"%b["confiance"].lower())
     plage=("%d à %d nœuds"%(b["vent_lo"],b["vent_max"])) if b.get("vent_lo") and b["vent_lo"]<b["vent_max"] else ("jusqu'à %d nœuds"%b["vent_max"])
+    stat=(["%s · %s"%(bms, fiab)] if "\n" not in bms else [bms, fiab])
     lines=[hdr+b["generated"],
            "La Ciotat ↔ Les Embiez",
-           "",
-           "%s · %s"%(bms, fiab)] + ([vigline] if vigline else []) + [
+           ""] + stat + ([vigline] if vigline else []) + [
            "",
            "▶ %s · Navigation %s"%(JOUR,feu),
            "Vent %s %s, rafales %d nœuds · Mer %.1f m"%(b["dom_dir"],plage,b["raf_max"],b["mer_max"])]

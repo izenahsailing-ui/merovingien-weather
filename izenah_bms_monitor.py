@@ -48,7 +48,7 @@ def weekly_health(send=True):
     except Exception: pass
     msg = ("🟢 SANTÉ DU SYSTÈME · IZENAH\n"
            "Semaine écoulée : %d briefing(s) envoyé(s), surveillance vent active.\n"
-           "Prochain briefing : demain 18h15." % cnt)
+           "Prochain briefing : demain 18h30." % cnt)
     if send:
         tok, chat = T.load_token(), T.load_chat()
         if tok and chat:

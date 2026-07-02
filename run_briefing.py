@@ -42,8 +42,9 @@ def main(send=True, force=False):
     if already_sent(target) and not force:
         print(">> Briefing pour %s deja envoye, rien a faire (garde anti-doublon)." % target)
         return None
-    if scheduled and not force and not (18 <= now.hour <= 23):
-        print(">> Cron hors fenetre (il est %dh%02d Paris) : on attend le bon creneau." % (now.hour, now.minute))
+    # fenetre d'envoi : APRES la maj Meteo-France de 18h15 (cible 18h30), jusqu'a minuit
+    if scheduled and not force and not (now.hour > 18 or (now.hour == 18 and now.minute >= 25)) :
+        print(">> Cron hors fenetre (il est %dh%02d Paris) : on attend 18h25+." % (now.hour, now.minute))
         return None
 
     b = build_brief()
