@@ -1,13 +1,13 @@
 name: Izenah - briefing du soir
 on:
   schedule:
-    # Crons redondants : GitHub retarde/saute les crons (constate le 1er juil. : +5h).
-    # CIBLE 18h30 Paris (apres la maj Meteo-France de 18h15). Le script decide en
-    # HEURE DE PARIS (envoi 18h25-24h) + garde anti-doublon : seul le premier passe.
+    # DECLENCHEUR PRINCIPAL = cron-job.org a 18h30 Paris pile (workflow_dispatch).
+    # Ces crons GitHub ne sont que le FILET DE SECOURS (GitHub les retarde/saute).
+    # Garde anti-doublon cote script : seul le premier passage envoie.
     # Couvre ete (16:30 UTC = 18:30) et hiver (17:30 UTC = 18:30).
-    - cron: '30,45 16 * * *'
-    - cron: '0,15,30,45 17 * * *'
-    - cron: '15 18 * * *'
+    - cron: '35 16 * * *'
+    - cron: '35 17 * * *'
+    - cron: '20 18 * * *'
   workflow_dispatch:        # bouton "Run workflow" pour tester a la demande
 permissions:
   contents: write

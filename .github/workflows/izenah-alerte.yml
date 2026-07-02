@@ -1,10 +1,12 @@
 name: Izenah - alerte vent (surveillance continue)
 on:
+  # DECLENCHEUR = cron-job.org toutes les 30 min pile (workflow_dispatch), fiable.
+  # Le cron GitHub ci-dessous n'est qu'un filet de secours espace (2h) si cron-job tombe :
+  # ainsi on reste largement sous les 2000 minutes gratuites GitHub par mois.
+  # Anti-spam bms_state.json : jamais deux fois la meme alerte.
+  # Ce job porte aussi le WATCHDOG du briefing (19h-23h) et le bilan sante du dimanche.
   schedule:
-    # Toutes les 20 min : GitHub en saute beaucoup, on obtient ainsi ~1 passage/heure reel.
-    # Anti-spam bms_state.json : jamais deux fois la meme alerte.
-    # Ce job porte aussi le WATCHDOG du briefing (19h-23h) et le bilan sante du dimanche.
-    - cron: '*/20 * * * *'
+    - cron: '50 */4 * * *'
   workflow_dispatch:
 permissions:
   contents: write
