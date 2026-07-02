@@ -28,7 +28,10 @@ MOUILLAGES = {
     "La Madrague (St-Cyr)": dict(lat=43.178, lon=5.700, exp8={
         "N":0.35, "NE":0.20, "E":0.12, "SE":0.28, "S":0.80, "SW":0.85, "W":0.90, "NW":0.92}),
 }
-MODELS = ["meteofrance_arome_france_hd", "ecmwf_ifs025", "icon_eu", "gfs_seamless"]
+MODELS = ["meteofrance_arome_france_hd", "meteofrance_arpege_europe", "ecmwf_ifs025", "icon_eu", "gfs_seamless"]
+# Poids par modele (mailles fines credibles > modeles globaux) pour le scenario retenu
+W_MODEL = {"meteofrance_arome_france_hd": 3.0, "meteofrance_arpege_europe": 2.0,
+           "ecmwf_ifs025": 2.0, "icon_eu": 1.0, "gfs_seamless": 1.0}
 
 # ---------------- Seuils Standard croisiere ----------------
 S_VENT = (14, 22)      # favorable<=14 ; prudence<=22 ; sinon deconseille
@@ -119,6 +122,46 @@ def cross_stats(hourly, var, i):
     if not vals: return (None,None,None)
     return (min(vals), max(vals), sum(vals)/len(vals))
 
+def cred_high(hourly, var, i):
+    """Scenario haut credible au pas i : max(AROME, percentile 75 pondere des modeles).
+    Pour la securite nav on ne lisse jamais le danger par la moyenne."""
+    vals=[]; wts=[]
+    for m in MODELS:
+        s=series(hourly, var, m)
+        if s and i<len(s) and s[i] is not None:
+            vals.append(s[i]); wts.append(W_MODEL.get(m,1.0))
+    if not vals: return None
+    pairs=sorted(zip(vals,wts)); tot=sum(w for _,w in pairs); acc=0; p75=pairs[-1][0]
+    for v,w in pairs:
+        acc+=w
+        if acc>=0.75*tot: p75=v; break
+    a=series(hourly, var, "meteofrance_arome_france_hd")
+    av=a[i] if a and i<len(a) and a[i] is not None else None
+    return max(av,p75) if av is not None else p75
+
+def _run_stability(target_day, vent_hi, raf_max, dom_dir):
+    """Stabilite run-a-run : compare la prevision du jour au brief archive le plus
+    recent qui parlait deja du meme jour cible (le J+2 d'hier = notre J+1).
+    Renvoie (score 0..1, note)."""
+    base=os.path.dirname(os.path.abspath(__file__)); arch=os.path.join(base,"archives")
+    try:
+        cand=[f for f in os.listdir(arch) if f.startswith("brief") and f.endswith(".json")]
+        cand=[f for f in cand if time.time()-os.path.getmtime(os.path.join(arch,f))>600]
+        cand.sort(key=lambda f:os.path.getmtime(os.path.join(arch,f)), reverse=True)
+        for f in cand[:5]:
+            try: d=json.load(open(os.path.join(arch,f)))
+            except Exception: continue
+            for c in d.get("consensus",[]):
+                if c.get("day")==fr_jour(target_day):
+                    dv=abs((c.get("vmax") or 0)-vent_hi)
+                    dg=abs((c.get("gust") or raf_max)-raf_max)
+                    ddir=0 if c.get("wdir")==dom_dir else 1
+                    s=max(0.0,min(1.0,1.0-dv/15.0-dg/30.0-0.15*ddir))
+                    return s,("stable vs veille" if s>=0.75 else "a bougé depuis hier")
+        return 0.75,"pas d'historique comparable"
+    except Exception:
+        return 0.75,"pas d'historique comparable"
+
 def primary_series(hourly, var):
     """AROME si dispo sinon ECMWF, par pas (pour le detail)."""
     a=series(hourly, var, "meteofrance_arome_france_hd")
@@ -153,7 +196,15 @@ def build_brief(target="demain"):
     arome_press=primary_series(H,"pressure_msl")
     arome_temp=primary_series(H,"temperature_2m")
 
-    # --- graphe horaire 24h (a partir de i_now) ---
+    # --- fenetre d'affichage : le JOUR CIBLE en entier, plus la nuit qui y mene ---
+    # (le badge Navigation, le graphe et le tableau parlent ainsi du MEME jour)
+    target_day=(now.date() if target=="today" else (now+datetime.timedelta(days=1)).date())
+    win_start=max(now-datetime.timedelta(hours=1),
+                  datetime.datetime.combine(target_day, datetime.time(0))-datetime.timedelta(hours=6))
+    win_end=datetime.datetime.combine(target_day, datetime.time(23))
+    idx_win=[i for i in range(n) if win_start<=times[i]<=win_end][:32]
+    if not idx_win: idx_win=list(range(i_now, min(n, i_now+25)))
+
     chart=dict(hours=[], mean=[], mn=[], mx=[], gust=[], night=[], dir=[])
     sun=fc.get("daily",{})
     def is_night(dt):
@@ -167,9 +218,7 @@ def build_brief(target="demain"):
             if sr and sscur: return not (sr <= dt <= sscur)
         except Exception: pass
         return dt.hour<6 or dt.hour>=21
-    for k in range(0, 25):
-        i=i_now+k
-        if i>=n: break
+    for i in idx_win:
         mn,mx,mean=cross_stats(H,"wind_speed_10m",i)
         _,gmax,_=cross_stats(H,"wind_gusts_10m",i)
         if mean is None: continue
@@ -179,11 +228,11 @@ def build_brief(target="demain"):
         chart["night"].append(is_night(times[i]))
         chart["dir"].append(dir8(arome_dir[i]))
 
-    # --- detail 2h sur 24h ---
+    # --- detail sur la meme fenetre (cadence 2h, 3h si la fenetre est longue) ---
     detail=[]
-    for k in range(0, 25, 2):
-        i=i_now+k
-        if i>=n: break
+    step=2 if len(idx_win)<=26 else 3
+    for k in range(0, len(idx_win), step):
+        i=idx_win[k]
         mn,mx,mean=cross_stats(H,"wind_speed_10m",i)
         _,gmax,_=cross_stats(H,"wind_gusts_10m",i)
         if mean is None: continue
@@ -208,11 +257,15 @@ def build_brief(target="demain"):
             cape=round(arome_cape[i]) if arome_cape[i] is not None else 0,
         ))
 
-    # --- demain (J+1) : fenetre journee pour Navigation ---
-    tomorrow=(now.date() if target=="today" else (now+datetime.timedelta(days=1)).date())
+    # --- jour cible : fenetre journee pour Navigation ---
+    tomorrow=target_day
     idx_tom=[i for i in range(n) if times[i].date()==tomorrow]
     day_idx=[i for i in idx_tom if 8<=times[i].hour<=20]
-    vent_max_moy = max((cross_stats(H,"wind_speed_10m",i)[2] or 0) for i in day_idx) if day_idx else 0
+    # scenario haut credible (jamais la moyenne : elle lisse le danger)
+    vent_hi = max((cred_high(H,"wind_speed_10m",i) or 0) for i in day_idx) if day_idx else 0
+    i_peak  = max(day_idx, key=lambda i:(cred_high(H,"wind_speed_10m",i) or 0)) if day_idx else None
+    v_lo,v_hi,_ = cross_stats(H,"wind_speed_10m",i_peak) if i_peak is not None else (0,0,0)
+    vent_max_moy = vent_hi
     raf_max      = max((cross_stats(H,"wind_gusts_10m",i)[1] or 0) for i in day_idx) if day_idx else 0
     mer_max      = max((wav_h[i] for i in idx_tom if i<len(wav_h) and wav_h[i] is not None), default=0)
     cape_max     = max((arome_cape[i] or 0) for i in idx_tom) if idx_tom else 0
@@ -230,7 +283,10 @@ def build_brief(target="demain"):
     fc_color=feu(vent_max_moy,raf_max,mer_max,cape_max)
     nav_status={"G":"FAVORABLE","A":"PRUDENCE","R":"DÉCONSEILLÉ"}[fc_color]
     dom_dir=dir8(avg([arome_dir[i] for i in day_idx])) if day_idx else "NW"
-    nav_reason="Vent %s dominant, jusqu'à %d kn (rafales %d). Mer %.1f m." % (dom_dir, round(vent_max_moy), round(raf_max), mer_max)
+    if v_lo is not None and v_hi is not None and round(v_lo)!=round(v_hi):
+        nav_reason="Vent %s, %d à %d kn selon les modèles (rafales %d). Mer %.1f m." % (dom_dir, round(v_lo), round(max(v_hi,vent_hi)), round(raf_max), mer_max)
+    else:
+        nav_reason="Vent %s, jusqu'à %d kn (rafales %d). Mer %.1f m." % (dom_dir, round(vent_hi), round(raf_max), mer_max)
     if cs_gust>raf_max+3: nav_reason+=" Accélération au Cap Sicié (rafales %d kn)." % round(cs_gust)
 
     # --- probabilites d'ensemble (J+1 et au-dela) ---
@@ -251,22 +307,28 @@ def build_brief(target="demain"):
         return round(100*cnt/tot) if tot else None
     p_raf30_tom=proba_over(tomorrow,"wind_gusts_10m",30,gust_members)
 
-    # --- confiance J+1 : accord modeles + dispersion ensemble ---
-    spreads=[]
+    # --- fiabilite J+1 : score 0..100 = accord modeles x accord ensemble x stabilite run-a-run ---
+    # Les ecarts sont mesures en % du vent prevu (5 kn d'ecart sur 25 kn de mistral
+    # n'est pas la meme incertitude que 5 kn sur 8 kn de brise).
+    rels=[]
     for i in day_idx:
         mn,mx,mean=cross_stats(H,"wind_speed_10m",i)
-        if mn is not None: spreads.append(mx-mn)
-    model_spread=avg(spreads) or 0
-    # dispersion ensemble (ecart-type des max journaliers)
+        if mn is not None and mean is not None: rels.append((mx-mn)/max(mean,10.0))
+    rel_spread=avg(rels) or 0
     ens_idx=[i for i in range(len(et)) if et[i].date()==tomorrow and 8<=et[i].hour<=20]
     member_max=[]
     for mk in [k for k in EH.keys() if k.startswith("wind_speed_10m")]:
         s=EH[mk]; mx=max((s[i] for i in ens_idx if i<len(s) and s[i] is not None), default=None)
         if mx is not None: member_max.append(mx)
     ens_std=(statistics_std(member_max)) if len(member_max)>2 else 0
-    if model_spread<5 and ens_std<4: conf="ÉLEVÉE"
-    elif model_spread<10 and ens_std<7: conf="MODÉRÉE"
-    else: conf="FAIBLE"
+    ens_mean=avg(member_max) or 0
+    rel_std=ens_std/max(ens_mean,10.0)
+    s_mod=max(0.0,min(1.0,1.15-1.1*rel_spread))
+    s_ens=max(0.0,min(1.0,1.10-2.0*rel_std))
+    s_run,run_note=_run_stability(tomorrow, vent_hi, raf_max, dom_dir)
+    conf_pct=int(round(100*(0.40*s_mod+0.35*s_ens+0.25*s_run)))
+    conf="ÉLEVÉE" if conf_pct>=70 else ("MODÉRÉE" if conf_pct>=50 else "FAIBLE")
+    conf_detail="Modèles d'accord à %d%% · scénarios à %d%% · %s"%(round(100*s_mod),round(100*s_ens),run_note)
 
     # --- mouillages : confort/risque a partir de l'exposition directionnelle (toutes directions) ---
     moor=[]
@@ -307,7 +369,7 @@ def build_brief(target="demain"):
         vmins=[];vmaxs=[];gusts=[];dirs=[];spreads2=[]
         for i in idx:
             v=cross_long("wind_speed_10m",i)
-            if v: vmins.append(min(v)); vmaxs.append(max(v)); spreads2.append(max(v)-min(v))
+            if v: vmins.append(min(v)); vmaxs.append(max(v)); spreads2.append((max(v)-min(v))/max(sum(v)/len(v),10.0))
             g=cross_long("wind_gusts_10m",i)
             if g: gusts.append(max(g))
             d=cross_long("wind_direction_10m",i)
@@ -318,10 +380,16 @@ def build_brief(target="demain"):
         mer=max((wav_h[i] for i in idx if i<len(wav_h) and wav_h[i] is not None), default=None)
         hdir=dir8(avg([wav_d[i] for i in idx if i<len(wav_d) and wav_d[i] is not None])) if idx else "?"
         sp=avg(spreads2) or 0
-        cf="Élevée" if sp<5 else ("Modérée" if sp<10 else "Faible")
+        pct_c=int(round(100*max(0.0,min(1.0,1.15-1.1*sp))))
         consensus.append(dict(day=fr_jour(day), wdir=dir8(avg(dirs)) if dirs else "?",
             vmin=vmin, vmax=vmax, force=force, gust=round(max(gusts)) if gusts else None,
-            houle_dir=hdir, houle=("%.1f m"%mer).replace(".",",") if mer is not None else "n/d", conf=cf))
+            houle_dir=hdir, houle=("%.1f m"%mer).replace(".",",") if mer is not None else "n/d",
+            conf_pct=pct_c, conf="Élevée"))
+    # coherence : la confiance ne peut pas AUGMENTER en s'eloignant dans le temps
+    prev=conf_pct
+    for c in consensus:
+        c["conf_pct"]=min(c["conf_pct"], prev); prev=c["conf_pct"]
+        c["conf"]="Élevée" if c["conf_pct"]>=70 else ("Modérée" if c["conf_pct"]>=50 else "Faible")
     # --- tendance J+5..J+12 (ensemble) ---
     def proba_window(d0,d1,thr):
         days={(now+datetime.timedelta(days=x)).date() for x in range(d0,d1+1)}
@@ -341,6 +409,42 @@ def build_brief(target="demain"):
     if p1 is not None: tendance.append(("Vent fort (> force 6) entre J+5 et J+7", p1/100.0))
     if p2 is not None: tendance.append(("Coup de vent (> force 7) au-delà de J+8", p2/100.0))
 
+    # --- fenetres de sortie sur le jour cible (8h-20h) ---
+    def hour_feu(i):
+        v=cred_high(H,"wind_speed_10m",i) or 0
+        _,g,_=cross_stats(H,"wind_gusts_10m",i); g=g or 0
+        w=wav_h[i] if i<len(wav_h) and wav_h[i] is not None else 0
+        cols=(col_vent(v),col_raf(g),col_mer(w))
+        return "R" if "R" in cols else ("A" if "A" in cols else "G")
+    fenetre=None
+    for want in ("G","A"):
+        best_run=[]; run=[]
+        for i in day_idx:
+            f=hour_feu(i)
+            ok=(f=="G") if want=="G" else (f in ("G","A"))
+            if ok: run.append(i)
+            else:
+                if len(run)>len(best_run): best_run=run
+                run=[]
+        if len(run)>len(best_run): best_run=run
+        if len(best_run)>=3:
+            if want=="G" and len(best_run)>=len(day_idx)-1:
+                fenetre=dict(kind="ALL", frm="", to="")
+            else:
+                fenetre=dict(kind=want, frm=times[best_run[0]].strftime("%Hh"), to=times[best_run[-1]].strftime("%Hh"))
+            break
+
+    # --- contexte synoptique (une ligne de lecture meteo) ---
+    v_am=avg([cross_stats(H,"wind_speed_10m",i)[2] for i in day_idx if times[i].hour<=12]) or 0
+    v_pm=avg([cross_stats(H,"wind_speed_10m",i)[2] for i in day_idx if times[i].hour>=15]) or 0
+    trend=(" en renforcement" if v_pm>v_am+4 else (" en déclin" if v_am>v_pm+4 else " établi"))
+    if vent_hi>=15 and dom_dir in ("NW","W","N"): contexte="Mistral"+trend
+    elif vent_hi>=15 and dom_dir in ("E","SE","NE"): contexte="Épisode de vent d'Est"+trend
+    elif vent_hi>=15: contexte="Flux de secteur %s soutenu"%dom_dir+trend
+    elif vent_hi<10: contexte="Situation calme, brises thermiques dominantes"
+    else: contexte="Flux modéré de %s"%dom_dir
+    if cape_max>=CAPE_ORAGE: contexte+=", atmosphère instable (grains possibles)"
+
     # estimation BMS : Meteo-France emet un BMS Cote des force 7 (28 kn soutenu) ;
     # les rafales 34-40 kn = coup de vent. On declenche sur les rafales ET le vent max (pas la moyenne lissee).
     bms_est = ("coup de vent" if (raf_max >= 40 or vent_max_moy >= 34)
@@ -359,7 +463,9 @@ def build_brief(target="demain"):
         i_now=i_now, n=n,
         chart=chart, detail=detail,
         nav=dict(color=fc_color, status=nav_status, reason=nav_reason),
-        confiance=conf, dom_dir=dom_dir,
+        confiance=conf, confiance_pct=conf_pct, conf_detail=conf_detail,
+        fenetre=fenetre, contexte=contexte, target_day=tomorrow.isoformat(),
+        dom_dir=dom_dir, vent_lo=round(v_lo or 0),
         vent_max=round(vent_max_moy), raf_max=round(raf_max), mer_max=round(mer_max,1),
         cape_max=round(cape_max), cs_gust=round(cs_gust),
         p_raf30_tom=p_raf30_tom,

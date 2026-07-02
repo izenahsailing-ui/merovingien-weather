@@ -208,12 +208,24 @@ def narrative(b):
         left=("warn", RED if vig["max_color"]>=4 else AMBER, "VIGILANCE %s (officiel)"%vig["max_label"].upper(), "Météo-France Var/13 : "+ph)
     elif b.get("bms_est"): left=("warn",AMBER,"BMS PROBABLE : "+b["bms_est"].upper(),"Estimation modèle, confirme le bulletin officiel")
     else: left=("ok",GREEN,"PAS DE BMS ATTENDU","Estimation modèle, confirme sur Météo-France")
-    if b["raf_max"]>=30: right=("warn",AMBER,"ÉPISODE SIGNALÉ","%s %s, rafales %d nœuds — risque de dépasser 30 nœuds : %s%%"%(dd,jour,b["raf_max"],b["p_raf30_tom"]))
+    p30=("%d%%"%b["p_raf30_tom"]) if b.get("p_raf30_tom") is not None else "n/d"
+    if b["raf_max"]>=30: right=("warn",AMBER,"ÉPISODE SIGNALÉ","%s %s, rafales %d nœuds — risque de dépasser 30 nœuds : %s"%(dd,jour,b["raf_max"],p30))
     else: right=("ok",GREEN,"PAS D'ÉPISODE MAJEUR","Aucun coup de vent notable prévu")
     reco=[("CE SOIR","Mouille à <b>%s</b> : le mieux protégé du %s ce soir, mer la plus calme."%(best,dd))]
-    if nav["color"]=="R": reco.append((JOUR,"Conditions musclées. Reste au mouillage protégé ou au port ; vent jusqu'à %d kn, rafales %d."%(b["vent_max"],b["raf_max"])))
-    elif nav["color"]=="A": reco.append((JOUR,"Sortie possible avec prudence ; surveille les rafales (%d kn)%s."%(b["raf_max"]," et le Cap Sicié" if b["cs_gust"]>b["raf_max"]+3 else "")))
-    else: reco.append((JOUR,"Belle fenêtre : vent modéré, mer maniable, bon créneau pour naviguer."))
+    fen=b.get("fenetre")
+    if nav["color"]=="R":
+        txt="Conditions musclées. Reste au mouillage protégé ou au port ; vent jusqu'à %d kn, rafales %d."%(b["vent_max"],b["raf_max"])
+        if fen and fen["kind"] in ("G","A"): txt+=" Seul créneau plus maniable : <b>%s à %s</b>."%(fen["frm"],fen["to"])
+        reco.append((JOUR,txt))
+    elif nav["color"]=="A":
+        txt="Sortie possible avec prudence ; surveille les rafales (%d kn)%s."%(b["raf_max"]," et le Cap Sicié" if b["cs_gust"]>b["raf_max"]+3 else "")
+        if fen and fen["kind"]=="G": txt+=" Meilleure fenêtre : <b>%s à %s</b>."%(fen["frm"],fen["to"])
+        elif fen and fen["kind"]=="A": txt+=" Créneau le plus sûr : <b>%s à %s</b>."%(fen["frm"],fen["to"])
+        reco.append((JOUR,txt))
+    else:
+        txt="Belle fenêtre : vent modéré, mer maniable, bon créneau pour naviguer."
+        if fen and fen["kind"]=="G": txt="Belle journée : vent modéré, mer maniable. Meilleur créneau : <b>%s à %s</b>."%(fen["frm"],fen["to"])
+        reco.append((JOUR,txt))
     worst=None
     for c in b["consensus"]:
         if c["gust"] and (worst is None or c["gust"]>worst["gust"]): worst=c
@@ -225,7 +237,9 @@ def narrative(b):
                    "(secteur exposé de %s)."%(best, ba["to"], ba["jour"], ba["heure"], ba["dir"], best))
     else:
         moor_line="<b>Mouillage :</b> %s, bien protégé sur toute la période, pas de bascule nécessaire."%best
-    concl=["<b>%s :</b> %s. %s"%(jourC,nav["status"].lower(),nav["reason"]), moor_line]
+    concl=["<b>%s :</b> %s. %s"%(jourC,nav["status"].lower(),nav["reason"])]
+    if b.get("contexte"): concl.append("<b>Situation :</b> %s."%b["contexte"])
+    concl.append(moor_line)
     if b["raf_max"]>=34: concl.append("<b>Coup de vent :</b> rafales %d kn, mer %.1f m. <font color='#B3261E'><b>Prudence maximale</b></font>."%(b["raf_max"],b["mer_max"]))
     elif b["raf_max"]>=30: concl.append("<b>Rafales :</b> jusqu'à %d kn, surtout au Cap Sicié, vigilance."%b["raf_max"])
     else: concl.append("<b>Mer :</b> %.1f m, conditions maniables."%b["mer_max"])
@@ -239,15 +253,23 @@ def synthese_telegram(b):
     vigline=("🟧 Vigilance officielle %s (Var/13) : %s"%(vig["max_label"], ", ".join("%s %s"%(k,v) for k,v in vig.get("phenos",{}).items()))) if (vig and vig.get("max_color",1)>=3) else None
     JOUR=("AUJOURD'HUI" if b.get("target")=="today" else "DEMAIN")
     hdr=("☀️ RAPPORT DU JOUR IZENAH · " if b.get("target")=="today" else "🌊 BRIEFING IZENAH · ")
+    fiab=("Fiabilité %s (%d%%)"%(b["confiance"].lower(),b["confiance_pct"])) if b.get("confiance_pct") is not None else ("Fiabilité %s"%b["confiance"].lower())
+    plage=("%d à %d nœuds"%(b["vent_lo"],b["vent_max"])) if b.get("vent_lo") and b["vent_lo"]<b["vent_max"] else ("jusqu'à %d nœuds"%b["vent_max"])
     lines=[hdr+b["generated"],
            "La Ciotat ↔ Les Embiez",
            "",
-           "%s · %s"%(bms, "Fiabilité %s"%b["confiance"].lower())] + ([vigline] if vigline else []) + [
+           "%s · %s"%(bms, fiab)] + ([vigline] if vigline else []) + [
            "",
            "▶ %s · Navigation %s"%(JOUR,feu),
-           "Vent %s, rafales %d nœuds · Mer %.1f m"%(b["dom_dir"],b["raf_max"],b["mer_max"]),
-           "Risque de rafales fortes (plus de 30 nœuds) : %s%% (%s)"%(b["p_raf30_tom"],p_word(b["p_raf30_tom"])),
-           "⚓ Mouillage conseillé : %s"%b["mouillage_best"],
+           "Vent %s %s, rafales %d nœuds · Mer %.1f m"%(b["dom_dir"],plage,b["raf_max"],b["mer_max"])]
+    if b.get("contexte"): lines.append("☁ %s"%b["contexte"])
+    if b.get("p_raf30_tom") is not None:
+        lines.append("Risque de rafales fortes (plus de 30 nœuds) : %d%% (%s)"%(b["p_raf30_tom"],p_word(b["p_raf30_tom"])))
+    fen=b.get("fenetre")
+    if fen and fen["kind"]=="ALL": lines.append("🟢 Favorable toute la journée")
+    elif fen and fen["kind"]=="G": lines.append("🟢 Meilleure fenêtre de sortie : %s à %s"%(fen["frm"],fen["to"]))
+    elif fen and fen["kind"]=="A": lines.append("🟠 Créneau le plus maniable : %s à %s"%(fen["frm"],fen["to"]))
+    lines+=["⚓ Mouillage conseillé : %s"%b["mouillage_best"],
            "",
            "🔗 Officiel Météo-France (secteur) : "+MF_LINK,
            "Détail complet dans le PDF ci-joint."]
@@ -276,9 +298,11 @@ def render(b, out):
     story+=[head,HRFlowable(width="100%",thickness=2,color=GOLD,spaceAfter=5),AlertStrip(W,alert),Spacer(1,6)]
     # NAV + FIAB
     gp=5*mm;navw=(W-gp)*0.60;fiabw=(W-gp)*0.40
-    conf=b["confiance"];conf_reason={"ÉLEVÉE":"Modèles d'accord, ensemble resserré.","MODÉRÉE":"Accord partiel entre modèles.","FAIBLE":"Modèles dispersés, à confirmer."}[conf]
+    conf=b["confiance"]
+    conf_reason=b.get("conf_detail") or {"ÉLEVÉE":"Modèles d'accord, ensemble resserré.","MODÉRÉE":"Accord partiel entre modèles.","FAIBLE":"Modèles dispersés, à confirmer."}[conf]
+    conf_status=("%s · %d%%"%(conf,b["confiance_pct"])) if b.get("confiance_pct") is not None else conf
     nav=StatusPanel(navw,"Navigation : peux-tu sortir ?",b["nav"]["status"],NAVCOL[b["nav"]["color"]],b["nav"]["reason"],[("favorable",CGd),("prudence",CAd),("déconseillé",CRd)])
-    fiab=StatusPanel(fiabw,"Fiabilité : prévision sûre ?",conf,CONFCOL[conf],conf_reason,[("faible",CRd),("modérée",CAd),("élevée",CGd)])
+    fiab=StatusPanel(fiabw,"Fiabilité : prévision sûre ?",conf_status,CONFCOL[conf],conf_reason,[("faible",CRd),("modérée",CAd),("élevée",CGd)])
     prow=Table([[nav,"",fiab]],colWidths=[navw,gp,fiabw]);prow.setStyle(TableStyle([("LEFTPADDING",(0,0),(-1,-1),0),("RIGHTPADDING",(0,0),(-1,-1),0),("TOPPADDING",(0,0),(-1,-1),0),("BOTTOMPADDING",(0,0),(-1,-1),0),("VALIGN",(0,0),(-1,-1),"TOP")]))
     story+=[prow,Spacer(1,6)]
     # MOUILLAGES
@@ -335,7 +359,8 @@ def render(b, out):
         elif i%2==1:ts.append(("BACKGROUND",(0,rr),(-1,rr),ZEBRA))
     t.setStyle(TableStyle(ts));story+=[t,Spacer(1,4)]
     fen="<b>Orage et grain :</b> risque <font color='#1C7C54'><b>%s</b></font> (CAPE max %d J/kg)."%(b["orage"],b["cape_max"]) if b["orage"]=="faible" else "<b>Orage et grain :</b> risque <font color='#B5740F'><b>%s</b></font> (CAPE max %d J/kg), surveille les développements."%(b["orage"],b["cape_max"])
-    story+=[Paragraph("<b>Vent dominant</b> de %s, jusqu'à %d kn (rafales %d). %s"%(b["dom_dir"],b["vent_max"],b["raf_max"],fen),body),PageBreak()]
+    plage=("%d à %d kn selon les modèles"%(b["vent_lo"],b["vent_max"])) if b.get("vent_lo") and b["vent_lo"]<b["vent_max"] else ("jusqu'à %d kn"%b["vent_max"])
+    story+=[Paragraph("<b>Vent dominant</b> de %s, %s (rafales %d). %s"%(b["dom_dir"],plage,b["raf_max"],fen),body),PageBreak()]
     # PAGE 2 — graphe
     ch=b["chart"]
     story+=[secheader("Le vent heure par heure",sub="La Ciotat • AROME 1,3 km, après le détail ci-dessus",tab=MARINE),Spacer(1,2)]
@@ -374,7 +399,7 @@ def render(b, out):
     cc=Table([[Paragraph("CE QUI MÉRITE ATTENTION",ct)],[Paragraph(pts,ci)]],colWidths=[W])
     cc.setStyle(TableStyle([("BACKGROUND",(0,0),(0,0),NAVY),("BACKGROUND",(0,1),(0,1),HexColor("#E9F1F8")),("LINEBEFORE",(0,1),(0,1),3,GOLD),("LEFTPADDING",(0,0),(-1,-1),10),("RIGHTPADDING",(0,0),(-1,-1),10),("TOPPADDING",(0,0),(0,0),5),("BOTTOMPADDING",(0,0),(0,0),5),("TOPPADDING",(0,1),(0,1),7),("BOTTOMPADDING",(0,1),(0,1),8)]))
     story+=[cc,Spacer(1,6),HRFlowable(width="100%",thickness=0.5,color=LINE,spaceAfter=3)]
-    story+=[Paragraph("<b>Méthode :</b> 6 modèles confrontés (AROME 1,3 km, ECMWF, ARPEGE, ICON, GFS) + ensemble ECMWF 51 scénarios ; BMS et Vigilance Météo-France font foi. Flèches : <font color='#1B6CA8'><b>•</b></font> vent, <font color='#0E9AA7'><b>•</b></font> houle. Sources : Météo-France, ECMWF, Open-Meteo.",small)]
+    story+=[Paragraph("<b>Méthode :</b> 5 modèles confrontés et pondérés (AROME 1,3 km, ARPEGE, ECMWF, ICON, GFS) + ensemble ECMWF 51 scénarios ; le badge Navigation retient le scénario haut crédible, jamais la moyenne. BMS et Vigilance Météo-France font foi. Flèches : <font color='#1B6CA8'><b>•</b></font> vent, <font color='#0E9AA7'><b>•</b></font> houle.",small)]
     story+=[Paragraph("<b>Bulletin officiel Météo-France</b> (secteur Marseille / La Ciotat) : <a href='%s'><font color='#1B6CA8'>%s</font></a>"%(MF_LINK,MF_LINK),small)]
     doc.build(story)
     return out

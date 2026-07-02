@@ -9,10 +9,77 @@ import izenah_send as T
 
 BASE = os.path.dirname(os.path.abspath(__file__))
 STATE = os.path.join(BASE, "bms_state.json")
+HEALTH = os.path.join(BASE, "health_state.json")
 HORIZON_H = 48
+
+def watchdog_briefing(send=True):
+    """Filet de securite : si le briefing du soir n'est pas parti a 19h passees
+    (cron GitHub retarde/saute), on l'envoie d'ici. Ne fait rien sinon."""
+    now = datetime.datetime.now()
+    if not (19 <= now.hour <= 23):
+        return
+    try:
+        import run_briefing
+        target = (now.date() + datetime.timedelta(days=1)).isoformat()
+        if run_briefing.already_sent(target):
+            return
+        print(">> WATCHDOG : briefing du soir manquant, envoi de rattrapage.")
+        run_briefing.main(send=send, force=True)
+    except Exception as e:
+        print(">> Watchdog briefing en echec:", e)
+
+def weekly_health(send=True):
+    """Le dimanche soir : un court bilan pour prouver que le systeme vit."""
+    now = datetime.datetime.now()
+    if not (now.weekday() == 6 and 18 <= now.hour <= 22):
+        return
+    wk = now.strftime("%G-W%V")
+    try: st = json.load(open(HEALTH))
+    except Exception: st = {}
+    if st.get("week") == wk:
+        return
+    arch = os.path.join(BASE, "archives")
+    cnt = 0
+    try:
+        for f in os.listdir(arch):
+            if f.startswith("briefing") and f.endswith(".pdf"):
+                age = (now - datetime.datetime.fromtimestamp(os.path.getmtime(os.path.join(arch, f)))).days
+                if 0 <= age <= 7: cnt += 1
+    except Exception: pass
+    msg = ("🟢 SANTÉ DU SYSTÈME · IZENAH\n"
+           "Semaine écoulée : %d briefing(s) envoyé(s), surveillance vent active.\n"
+           "Prochain briefing : demain 18h15." % cnt)
+    if send:
+        tok, chat = T.load_token(), T.load_chat()
+        if tok and chat:
+            T.send_message(tok, chat, msg)
+    json.dump({"week": wk, "at": now.isoformat()}, open(HEALTH, "w"))
 
 def run(send=True):
     now = datetime.datetime.now()
+    watchdog_briefing(send=send)
+    weekly_health(send=send)
+    # --- Vigilance officielle Meteo-France (prioritaire, si cle MF_APIKEY presente) ---
+    try:
+        import izenah_vigilance
+        vig = izenah_vigilance.fetch_vigilance()
+    except Exception:
+        vig = None
+    if vig and vig.get("max_color", 1) >= 3:
+        vsig = "VIG|%s|%s" % (now.date(), vig["max_label"])
+        vstate = os.path.join(BASE, "vig_state.json")
+        prev = json.load(open(vstate)) if os.path.exists(vstate) else {}
+        if prev.get("sig") != vsig:
+            ph = ", ".join("%s %s" % (k, v) for k, v in vig.get("phenos", {}).items())
+            vmsg = ("🟧 VIGILANCE OFFICIELLE · IZENAH\n"
+                    "Météo-France : vigilance %s sur ta zone (Var / Bouches-du-Rhône).\n%s\n\n"
+                    "⚓ Prudence maximale. Détails : https://vigilance.meteofrance.fr/fr" % (vig["max_label"].upper(), ph))
+            if send:
+                tok, chat = T.load_token(), T.load_chat()
+                if tok and chat:
+                    T.send_message(tok, chat, vmsg)
+            json.dump({"sig": vsig, "at": now.isoformat()}, open(vstate, "w"))
+    # --- Surveillance modele (coup de vent imminent) ---
     fc = E.om_forecast(*E.PT_PRIMAIRE[1:], days=3)
     cap = E.om_forecast(*E.PT_CAP_SICIE[1:], days=3)
     H = fc["hourly"]; times = [datetime.datetime.fromisoformat(t) for t in H["time"]]; n = len(times)
@@ -50,6 +117,23 @@ def run(send=True):
     elif peak_s >= 22 or peak_g >= 34:
         level, head = "ORANGE", "🟠 RENFORCEMENT NOTABLE"
     else:
+        # plus d'episode en vue : si on avait annonce un episode A VENIR, on previent qu'il est annule
+        state = json.load(open(STATE)) if os.path.exists(STATE) else {}
+        sig_prev = state.get("last_sig", "")
+        if sig_prev and not state.get("lifted"):
+            try: ep_date = datetime.date.fromisoformat(sig_prev.split("|")[0])
+            except Exception: ep_date = None
+            if ep_date and ep_date >= now.date():
+                msg = ("🟢 LEVÉE D'ALERTE · IZENAH\n"
+                       "L'épisode venteux annoncé (%s) a disparu des dernières prévisions.\n"
+                       "Retour à une situation normale." % E.fr_jour(ep_date))
+                if send:
+                    tok, chat = T.load_token(), T.load_chat()
+                    if tok and chat:
+                        T.send_message(tok, chat, msg)
+                state["lifted"] = True; state["at"] = now.isoformat()
+                json.dump(state, open(STATE, "w"))
+                return msg
         return None
 
     if start_i is not None:
@@ -63,8 +147,8 @@ def run(send=True):
         sig = "%s|%s" % (now.date(), level)
 
     state = json.load(open(STATE)) if os.path.exists(STATE) else {}
-    if state.get("last_sig") == sig:
-        return None  # déjà alerté pour cet épisode/niveau
+    if state.get("last_sig") == sig and not state.get("lifted"):
+        return None  # déjà alerté pour cet épisode/niveau (et pas levé entre-temps)
 
     msg = ("⚠️ ALERTE VENT · IZENAH (%s)\n"
            "Épisode venteux prévu sur La Ciotat ↔ Les Embiez : %s.\n\n"
