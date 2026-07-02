@@ -1,7 +1,12 @@
 name: Izenah - briefing du soir
 on:
   schedule:
-    - cron: '15 16 * * *'   # ~18h15 heure de Paris (ete) ; ~17h15 en hiver
+    # Crons redondants : GitHub retarde/saute les crons (constate le 1er juil. : +5h).
+    # Le script decide en HEURE DE PARIS (envoi 18h-24h) et une garde anti-doublon
+    # fait que seul le premier passage envoie. Couvre ete (16-17 UTC) et hiver (17-18 UTC).
+    - cron: '10,25,45 16 * * *'
+    - cron: '5,25,45 17 * * *'
+    - cron: '10 18 * * *'
   workflow_dispatch:        # bouton "Run workflow" pour tester a la demande
 permissions:
   contents: write
@@ -12,21 +17,32 @@ jobs:
   briefing:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
         with:
-          python-version: '3.11'
+          python-version: '3.12'
       - run: pip install -r requirements.txt
       - name: Generer et envoyer le briefing
         env:
           TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          MF_APIKEY: ${{ secrets.MF_APIKEY }}
+          GITHUB_EVENT_NAME: ${{ github.event_name }}
         run: python run_briefing.py
       - name: Archiver le PDF et l'etat
         run: |
           git config user.name "izenah-bot"
           git config user.email "izenah-bot@users.noreply.github.com"
-          git add archives bms_state.json vig_state.json 2>/dev/null || true
+          git add archives sent_state.json bms_state.json vig_state.json health_state.json 2>/dev/null || true
           git diff --cached --quiet || git commit -m "briefing du jour"
           git pull --rebase --autostash origin "${{ github.ref_name }}" || true
           git push || true
+      - name: Prevenir en cas d'echec
+        if: failure()
+        env:
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          curl -s "https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage" \
+            -d chat_id="${TELEGRAM_CHAT_ID}" \
+            -d text="⚠️ IZENAH : le briefing du soir a echoue (run ${{ github.run_id }}). Verifier GitHub Actions." > /dev/null

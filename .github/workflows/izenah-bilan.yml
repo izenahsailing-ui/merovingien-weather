@@ -1,0 +1,21 @@
+name: Izenah - bilan mensuel (auto-verification)
+on:
+  schedule:
+    - cron: '0 8 1 * *'   # le 1er du mois a ~10h (non critique si GitHub le retarde)
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  bilan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - run: pip install -r requirements.txt
+      - name: Verifier les previsions du mois ecoule
+        env:
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: python izenah_bilan.py
