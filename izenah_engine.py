@@ -184,6 +184,21 @@ def build_brief(target="demain"):
     cap=om_forecast(*PT_CAP_SICIE[1:], days=2)
     ens=om_ensemble(*PT_PRIMAIRE[1:], days=12)
     mar=om_marine(*PT_MARINE, days=8)
+    # BMS officiel recupere TOT : il PILOTE le feu, les fenetres et la fiabilite sur sa validite
+    try:
+        import izenah_bms_officiel
+        bms_off=izenah_bms_officiel.fetch_bms()
+    except Exception:
+        bms_off=None
+    def in_bms(dt):
+        """L'heure dt tombe-t-elle dans la fenetre de validite du BMS officiel de NOTRE zone ?"""
+        if not (bms_off and bms_off.get("actif_zone")): return False
+        try:
+            d0=datetime.datetime.fromisoformat(bms_off["debut_iso"]) if bms_off.get("debut_iso") else now
+            d1=datetime.datetime.fromisoformat(bms_off["fin_iso"]) if bms_off.get("fin_iso") else now
+            return d0<=dt<=d1
+        except Exception:
+            return False
 
     H=fc["hourly"]; times=[datetime.datetime.fromisoformat(t) for t in H["time"]]
     n=len(times)
@@ -286,6 +301,13 @@ def build_brief(target="demain"):
         if cape>=CAPE_ORAGE and c=="G": c="A"
         return c
     fc_color=feu(vent_max_moy,raf_max,mer_max,cape_max)
+    # Le BMS officiel FAIT FOI : s'il couvre une partie de la journee cible,
+    # le feu ne peut pas etre meilleur que Prudence (Deconseille si coup de vent+).
+    bms_on_target=any(in_bms(times[i]) for i in day_idx) if day_idx else False
+    if bms_on_target:
+        force_col="R" if (bms_off or {}).get("grave") else "A"
+        order={"G":0,"A":1,"R":2}
+        if order[force_col]>order[fc_color]: fc_color=force_col
     nav_status={"G":"FAVORABLE","A":"PRUDENCE","R":"DÉCONSEILLÉ"}[fc_color]
     dom_dir=dir8(avg([arome_dir[i] for i in day_idx])) if day_idx else "NW"
     if v_lo is not None and v_hi is not None and round(v_lo)!=round(v_hi):
@@ -293,6 +315,7 @@ def build_brief(target="demain"):
     else:
         nav_reason="Vent %s, jusqu'à %d kn (rafales %d). Mer %.1f m." % (dom_dir, round(vent_hi), round(raf_max), mer_max)
     if cs_gust>raf_max+3: nav_reason+=" Accélération au Cap Sicié (rafales %d kn)." % round(cs_gust)
+    if bms_on_target: nav_reason+=" BMS officiel en cours sur ce créneau (il fait foi)."
 
     # --- probabilites d'ensemble (J+1 et au-dela) ---
     EH=ens["hourly"]; et=[datetime.datetime.fromisoformat(t) for t in EH["time"]]
@@ -332,6 +355,11 @@ def build_brief(target="demain"):
     s_ens=max(0.0,min(1.0,1.10-2.0*rel_std))
     s_run,run_note=_run_stability(tomorrow, vent_hi, raf_max, dom_dir)
     conf_pct=int(round(100*(0.40*s_mod+0.35*s_ens+0.25*s_run)))
+    # confrontation au BMS officiel (il fait foi) :
+    if bms_on_target and raf_max<30:
+        conf_pct=min(conf_pct,55); run_note="bulletin officiel plus sévère que les modèles"
+    elif bms_on_target:
+        conf_pct=min(100,conf_pct+10); run_note="confirmé par le BMS officiel"
     conf="ÉLEVÉE" if conf_pct>=70 else ("MODÉRÉE" if conf_pct>=50 else "FAIBLE")
     conf_detail="Modèles d'accord à %d%% · scénarios à %d%% · %s"%(round(100*s_mod),round(100*s_ens),run_note)
 
@@ -458,7 +486,11 @@ def build_brief(target="demain"):
         _,g,_=cross_stats(H,"wind_gusts_10m",i); g=g or 0
         w=wav_h[i] if i<len(wav_h) and wav_h[i] is not None else 0
         cols=(col_vent(v),col_raf(g),col_mer(w))
-        return "R" if "R" in cols else ("A" if "A" in cols else "G")
+        f="R" if "R" in cols else ("A" if "A" in cols else "G")
+        # pendant la validite d'un BMS officiel, jamais mieux que Prudence
+        if in_bms(times[i]):
+            f="R" if (bms_off or {}).get("grave") else ("A" if f=="G" else f)
+        return f
     fenetre=None
     for want in ("G","A"):
         best_run=[]; run=[]
@@ -497,11 +529,7 @@ def build_brief(target="demain"):
         vigilance = izenah_vigilance.fetch_vigilance()
     except Exception:
         vigilance = None
-    try:
-        import izenah_bms_officiel
-        bms_off = izenah_bms_officiel.fetch_bms()
-    except Exception:
-        bms_off = None
+    # bms_off deja recupere en tete de fonction (il pilote feu/fenetres/fiabilite)
 
     brief=dict(
         generated=fr_date(now),

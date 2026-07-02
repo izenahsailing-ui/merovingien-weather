@@ -66,9 +66,13 @@ def fetch_bms():
                       for t in b.get("text_items", [])).strip()
         deb = _paris(b.get("begin_time")); fin = _paris(b.get("end_time"))
     if fin is None: fin = _paris(data.get("end_validity_time"))
+    grave = any(w in avis.lower() for w in ("coup de vent", "tempête", "tempete", "ouragan", "violente"))
     return dict(avis=avis or "BMS en cours", numero=numero,
                 actif_zone=bool(zone_blocs), zone_titre=zt, zone_texte=zx,
                 debut=_fr(deb), fin=_fr(fin), maj=_fr(_paris(data.get("update_time"))),
+                debut_iso=(deb.isoformat() if deb else None),
+                fin_iso=(fin.isoformat() if fin else None),
+                grave=grave,
                 sig="%s|%s|%s" % (numero, avis, bool(zone_blocs)))
 
 if __name__ == "__main__":
