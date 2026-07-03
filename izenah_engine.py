@@ -45,7 +45,9 @@ def fr_date(dt): return "%s %d %s %d, %dh%02d"%(JFR[dt.weekday()],dt.day,MFR[dt.
 def fr_jour(d):  return "%s %d %s"%(JFR[d.weekday()],d.day,MFR[d.month-1])
 
 # ---------------- HTTP ----------------
-def fetch(url, timeout=20, tries=3):
+def fetch(url, timeout=25, tries=4):
+    # retries patients : les runners GitHub partagent leurs IP et Open-Meteo
+    # rate-limite par vagues -> on encaisse au lieu de planter
     last = None
     for k in range(tries):
         try:
@@ -53,7 +55,7 @@ def fetch(url, timeout=20, tries=3):
             with urllib.request.urlopen(req, timeout=timeout) as r:
                 return json.loads(r.read().decode())
         except Exception as e:
-            last = e; time.sleep(1.5*(k+1))
+            last = e; time.sleep(2.5*(k+1))
     raise RuntimeError("fetch echec: %s -> %s" % (url[:80], last))
 
 def om_forecast(lat, lon, days=7):
@@ -286,21 +288,28 @@ def build_brief(target="demain"):
     i_peak  = max(day_idx, key=lambda i:(cred_high(H,"wind_speed_10m",i) or 0)) if day_idx else None
     v_lo,v_hi,_ = cross_stats(H,"wind_speed_10m",i_peak) if i_peak is not None else (0,0,0)
     vent_max_moy = vent_hi
-    raf_max      = max((cross_stats(H,"wind_gusts_10m",i)[1] or 0) for i in day_idx) if day_idx else 0
+    # rafales J+1 : scenario haut credible (AROME pondere x3 / p75), PAS le pire
+    # modele global isole — a moins de 48 h, la maille fine fait foi
+    raf_max      = max((cred_high(H,"wind_gusts_10m",i) or 0) for i in day_idx) if day_idx else 0
     mer_max      = max((wav_h[i] for i in idx_tom if i<len(wav_h) and wav_h[i] is not None), default=0)
+    # mer de vent vs houle residuelle : une houle longue sans vent n'est pas un danger
+    wwv_max      = max((wwv_h[i] for i in day_idx if i<len(wwv_h) and wwv_h[i] is not None), default=0) if day_idx else 0
+    mer_soft     = (wwv_max < 0.3 and raf_max <= 20)
     cape_max     = max((arome_cape[i] or 0) for i in idx_tom) if idx_tom else 0
     # Cap Sicie : surcote
     capH=cap["hourly"]; cs_idx=[i for i in range(len(capH["time"])) if datetime.datetime.fromisoformat(capH["time"][i]).date()==tomorrow and 8<=datetime.datetime.fromisoformat(capH["time"][i]).hour<=20]
     cs_gust=max((capH["wind_gusts_10m_meteofrance_arome_france_hd"][i] for i in cs_idx if i<len(capH.get("wind_gusts_10m_meteofrance_arome_france_hd",[])) and capH["wind_gusts_10m_meteofrance_arome_france_hd"][i] is not None), default=0) if cs_idx else 0
 
-    def feu(vent,raf,mer,cape):
+    def feu(vent,raf,mer,cape,soft=False):
+        # soft=True (J+1 seulement) : houle longue residuelle toleree jusqu'a 1,0 m
+        cm=("G" if mer<=1.0 else ("A" if mer<=1.25 else "R")) if soft else col_mer(mer)
         c="G"
-        for x in (col_vent(vent),col_raf(raf),col_mer(mer)):
+        for x in (col_vent(vent),col_raf(raf),cm):
             if x=="A" and c=="G": c="A"
             if x=="R": c="R"
         if cape>=CAPE_ORAGE and c=="G": c="A"
         return c
-    fc_color=feu(vent_max_moy,raf_max,mer_max,cape_max)
+    fc_color=feu(vent_max_moy,raf_max,mer_max,cape_max,soft=mer_soft)
     # Le BMS officiel FAIT FOI : s'il couvre une partie de la journee cible,
     # le feu ne peut pas etre meilleur que Prudence (Deconseille si coup de vent+).
     bms_on_target=any(in_bms(times[i]) for i in day_idx) if day_idx else False
@@ -412,10 +421,14 @@ def build_brief(target="demain"):
         per={}
         for name,info in MOUILLAGES.items():
             per[name]=round(max(moor_comfort_hour(info,i) for i in idxN),2)
-        bestN=min(per,key=per.get)
-        nights.append(dict(label=lbl, best=bestN, frac=per[bestN],
-                           verdict=moor_verdict(per[bestN]), per=per,
-                           port=(per[bestN]>=0.78)))  # aucun abri serein -> port conseille
+        # les DEUX mouillages sont presentes a egalite (aucun favori fixe) :
+        # classes par confort, "au choix" si l'ecart est negligeable
+        ranked=sorted(per.items(), key=lambda kv: kv[1])
+        (n1,f1),(n2,f2)=ranked[0],ranked[1]
+        nights.append(dict(label=lbl, best=n1, frac=f1, verdict=moor_verdict(f1),
+                           alt=n2, alt_frac=f2, alt_verdict=moor_verdict(f2),
+                           equal=(abs(f2-f1)<0.07), per=per,
+                           port=(f1>=0.78)))  # aucun abri serein -> port conseille
     moor_change=None
     if len(nights)==2 and nights[0]["best"]!=nights[1]["best"]:
         moor_change=dict(frm=nights[0]["best"], to=nights[1]["best"],
@@ -483,9 +496,12 @@ def build_brief(target="demain"):
     # --- fenetres de sortie sur le jour cible (8h-20h) ---
     def hour_feu(i):
         v=cred_high(H,"wind_speed_10m",i) or 0
-        _,g,_=cross_stats(H,"wind_gusts_10m",i); g=g or 0
+        g=cred_high(H,"wind_gusts_10m",i) or 0
         w=wav_h[i] if i<len(wav_h) and wav_h[i] is not None else 0
-        cols=(col_vent(v),col_raf(g),col_mer(w))
+        ww=wwv_h[i] if i<len(wwv_h) and wwv_h[i] is not None else 0
+        soft=(ww<0.3 and g<=20)
+        cm=("G" if w<=1.0 else ("A" if w<=1.25 else "R")) if soft else col_mer(w)
+        cols=(col_vent(v),col_raf(g),cm)
         f="R" if "R" in cols else ("A" if "A" in cols else "G")
         # pendant la validite d'un BMS officiel, jamais mieux que Prudence
         if in_bms(times[i]):

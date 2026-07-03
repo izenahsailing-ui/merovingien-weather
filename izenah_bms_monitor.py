@@ -189,5 +189,13 @@ def run(send=True):
     return msg
 
 if __name__ == "__main__":
-    m = run(send=("--nosend" not in sys.argv))
-    print(m if m else "RAS : aucun épisode venteux notable dans les 48 h.")
+    try:
+        m = run(send=("--nosend" not in sys.argv))
+        print(m if m else "RAS : aucun épisode venteux notable dans les 48 h.")
+    except RuntimeError as e:
+        # panne/rate-limit API meteo : pas un bug -> on sort proprement,
+        # le passage suivant (30 min) reessaiera. Aucune alerte d'echec envoyee.
+        print(">> API meteo indisponible sur ce passage (%s). Reessai au prochain run." % e)
+    except Exception as e:
+        import traceback; traceback.print_exc()
+        raise

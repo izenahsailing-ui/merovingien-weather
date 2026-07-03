@@ -198,6 +198,9 @@ def fit_text(txt, font, size, maxw):
     while txt and stringWidth(txt+"…",font,size)>maxw: txt=txt[:-1]
     return txt+"…"
 
+def mshort(n):
+    return n.split(" (")[0]
+
 def p_word(p):
     try: p=int(round(float(p)))
     except: return ""
@@ -233,9 +236,13 @@ def narrative(b):
     if bo and bo.get("actif_zone"):
         reco.append(("BMS EN COURS","Avis officiel Météo-France valable jusqu'à <b>%s</b> : %s Reste au port ou au mouillage le plus sûr tant qu'il court."%(bo.get("fin","?"),bo.get("zone_texte",""))))
     if nuits and nuits[0].get("port"):
-        reco.append(("CE SOIR","Aucun des deux mouillages n'est serein cette nuit : <b>préfère le port</b> (au mieux %s, %s)."%(best_soir,nuits[0]["verdict"].lower())))
+        reco.append(("CE SOIR","Aucun des deux mouillages n'est serein cette nuit : <b>préfère le port</b> (au mieux %s, %s)."%(mshort(best_soir),nuits[0]["verdict"].lower())))
+    elif nuits and nuits[0].get("equal"):
+        reco.append(("CE SOIR","<b>%s ou %s, au choix</b> : protections équivalentes cette nuit (%s)."%(mshort(nuits[0]["best"]),mshort(nuits[0]["alt"]),nuits[0]["verdict"].lower())))
+    elif nuits:
+        reco.append(("CE SOIR","<b>%s</b> (%s), mieux placé que %s (%s) cette nuit — vent et houle résiduelle comprises."%(mshort(nuits[0]["best"]),nuits[0]["verdict"].lower(),mshort(nuits[0]["alt"]),nuits[0]["alt_verdict"].lower())))
     else:
-        reco.append(("CE SOIR","Mouille à <b>%s</b> : le mieux protégé cette nuit (vent et houle résiduelle comprises)."%best_soir))
+        reco.append(("CE SOIR","Mouille à <b>%s</b> : le mieux protégé cette nuit."%mshort(best_soir)))
     fen=b.get("fenetre")
     if nav["color"]=="R":
         txt="Conditions musclées. Reste au mouillage protégé ou au port ; vent jusqu'à %d kn, rafales %d."%(b["vent_max"],b["raf_max"])
@@ -309,8 +316,12 @@ def synthese_telegram(b):
     nuits=b.get("nuits") or []
     if len(nuits)==2:
         mc=b.get("moor_change")
-        def _n(nu): return "%s (%s)"%(nu["best"],nu["verdict"].lower()) if not nu.get("port") else "%s au mieux — port conseillé"%nu["best"]
-        mline="⚓ Cette nuit : %s · Demain nuit : %s"%(_n(nuits[0]),_n(nuits[1]))
+        def _n(nu):
+            a,bn=mshort(nu["best"]),mshort(nu["alt"])
+            if nu.get("port"): return "%s et %s exposés — port conseillé"%(a,bn)
+            if nu.get("equal"): return "%s ou %s, au choix (%s)"%(a,bn,nu["verdict"].lower())
+            return "%s (%s) · %s (%s)"%(a,nu["verdict"].lower(),bn,nu["alt_verdict"].lower())
+        mline="⚓ Cette nuit : %s\n⚓ Demain nuit : %s"%(_n(nuits[0]),_n(nuits[1]))
         if mc: mline+="\n⚠️ Change de mouillage %s"%mc["quand"]
     else:
         mline="⚓ Mouillage conseillé : %s"%b["mouillage_best"]
@@ -375,10 +386,13 @@ def render(b, out):
     if len(nuits)==2:
         mc=b.get("moor_change")
         if mc: chg="<font color='#B5740F'><b>Change de mouillage %s.</b></font>"%mc["quand"]
-        else: chg="Pas de changement de mouillage nécessaire."
+        else: chg="Pas de changement nécessaire."
         def _np(nu):
-            base="%s (<font color='%s'>%s</font>)"%(nu["best"],vcol_of(nu["frac"]),nu["verdict"].lower())
-            return base+(" — <font color='#C02718'><b>port conseillé</b></font>" if nu.get("port") else "")
+            a="%s (<font color='%s'>%s</font>)"%(mshort(nu["best"]),vcol_of(nu["frac"]),nu["verdict"].lower())
+            bn="%s (<font color='%s'>%s</font>)"%(mshort(nu["alt"]),vcol_of(nu["alt_frac"]),nu["alt_verdict"].lower())
+            if nu.get("port"): return a+" — <font color='#C02718'><b>port conseillé</b></font>"
+            if nu.get("equal"): return "%s ou %s, <b>au choix</b>"%(a,bn)
+            return "%s · %s"%(a,bn)
         nline="<b>Où dormir — cette nuit :</b> %s &nbsp;·&nbsp; <b>demain nuit :</b> %s — %s"%(_np(nuits[0]),_np(nuits[1]),chg)
         story+=[Paragraph(nline,body),Spacer(1,4)]
     else:
