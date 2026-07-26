@@ -98,6 +98,17 @@ def main(send=True, force=False):
             izenah_send.send_document(tok, chat, html,
                                       caption="Briefing interactif pour le %s" % target)
             print(">> Rapport interactif envoye.")
+            # Filet le temps de verifier que le rapport interactif s ouvre bien
+            # sur iPhone : Telegram y desactive le JavaScript (le rapport n en
+            # utilise pas) mais l ouverture d un .html reste a confirmer.
+            # A retirer des que c est valide.
+            if os.environ.get("IZENAH_PDF_FALLBACK", "1") == "1":
+                try:
+                    izenah_send.send_document(tok, chat, pdf,
+                                              caption="Version PDF (filet, le temps de valider le format interactif)")
+                    print(">> PDF de secours envoye.")
+                except Exception as ex:
+                    print(">> PDF de secours non envoye (%s)." % ex)
     except Exception as ex:
         print(">> Document non envoye (%s: %s). La synthese, elle, est partie." % (type(ex).__name__, ex))
         if send:
