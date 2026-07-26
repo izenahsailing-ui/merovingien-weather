@@ -12,7 +12,7 @@ on:
 permissions:
   contents: write
 concurrency:
-  group: izenah-state
+  group: izenah-briefing
   cancel-in-progress: false
 jobs:
   briefing:
@@ -36,14 +36,21 @@ jobs:
           git config user.email "izenah-bot@users.noreply.github.com"
           git add -A
           git diff --cached --quiet || git commit -m "briefing du jour"
-          git pull --rebase --autostash origin "${{ github.ref_name }}" || true
-          git push || true
+          # Le push DOIT reussir : sans lui l'etat anti-doublon n'est pas
+          # persiste, le watchdog croit le briefing manquant et le renvoie
+          # toutes les 30 min. On retente, puis on echoue bruyamment.
+          ok=0
+          for i in 1 2 3 4 5; do
+            git pull --rebase --autostash origin "${{ github.ref_name }}" && git push && { ok=1; break; }
+            sleep $((i*5))
+          done
+          [ "$ok" = "1" ] || { echo "::error::push impossible apres 5 tentatives"; exit 1; }
       - name: Prevenir en cas d'echec
         if: failure()
         env:
           TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: |
-          curl -s "https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage" \
+          curl -sS -f "https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage" \
             -d chat_id="${TELEGRAM_CHAT_ID}" \
             -d text="⚠️ IZENAH : le briefing du soir a echoue (run ${{ github.run_id }}). Verifier GitHub Actions." > /dev/null
