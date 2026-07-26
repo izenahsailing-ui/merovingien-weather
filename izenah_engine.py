@@ -60,9 +60,37 @@ def centre_weight(centre, lead_h):
 
 def mesh_factor(km, lead_h):
     if lead_h > 48: return 1.0
-    return min(1.0, (8.0 / km) ** 0.35)
+    return min(1.0, (8.0 / km) ** 0.20)   # adouci : la mesure ne
+                                          # confirme pas la domination
+                                          # de la maille fine ici
 
-GUST_RATIO_MIN, GUST_RATIO_MAX = 1.05, 2.60
+# --- CALIBRATION MESUREE ---
+# 13 704 heures de previsions archivees confrontees a 18 mois d observation
+# reelle (station Meteo-France Bec de l Aigle, 13028001, a 2,7 km, du
+# 1er janv. 2025 au 26 juil. 2026). Poids = inverse de l erreur quadratique,
+# normalise a 1 pour le meilleur. Ces chiffres REMPLACENT les poids poses au
+# juge (AROME 3, ARPEGE 2, ECMWF 2, ICON 1, GFS 1), que la mesure infirme :
+# ARPEGE fait legerement mieux qu AROME sur le vent moyen, et ICON global est
+# le meilleur sur les rafales, la ou GFS est de loin le pire.
+W_SKILL = {
+  "wind_speed_10m": {"meteofrance_arpege_europe":1.00, "meteofrance_arome_france_hd":0.95,
+                     "icon_global":0.92, "ecmwf_ifs025":0.91, "gfs_seamless":0.84, "icon_eu":0.83},
+  "wind_gusts_10m": {"icon_global":1.00, "meteofrance_arome_france_hd":0.93,
+                     "ecmwf_ifs025":0.84, "icon_eu":0.81, "meteofrance_arpege_europe":0.79,
+                     "gfs_seamless":0.70},
+}
+# Rapport rafale/vent observe sur 10 318 heures : p01 1,18 · median 1,56 ·
+# p95 2,85 · p99 4,15. Le garde-fou ne sert donc qu a ecarter l aberration
+# franche (GFS produisait 0,46 et 4,37 la ou les autres donnaient 1,3), pas la
+# rafale forte reelle. Bornes elargies en consequence.
+GUST_RATIO_MIN, GUST_RATIO_MAX = 1.05, 3.20
+
+# Biais mesure du vent moyen par secteur, en m/s, au Bec de l Aigle.
+# ATTENTION : station a 316 m sur un cap. Ce tableau documente l ampleur de
+# l effet de site, il n est PAS applique au mouillage, qui est au niveau de la
+# mer. Il le sera quand une observation au ras de l eau sera disponible.
+BIAIS_SITE_BEC = {"N":-3.55,"NE":-3.36,"E":-4.09,"SE":-1.76,
+                  "S":-0.95,"SW":+0.65,"W":-1.13,"NW":-3.69}
 
 def wquantile(pairs, p):
     pairs = sorted((v, w) for v, w in pairs if v is not None and w > 0)
@@ -259,7 +287,10 @@ def wq(hourly, var, i, p):
                 r = val / v
                 if r < GUST_RATIO_MIN or r > GUST_RATIO_MAX:
                     continue
-        w = mesh_factor(MESH[mid], lead)
+        # poids = competence MESUREE du modele sur cette variable, moderee
+        # par la maille aux courtes echeances (une maille fine voit le relief
+        # que les globaux ignorent, meme si la mesure ne la classe pas 1re).
+        w = W_SKILL.get(var, {}).get(mid, 0.85) * mesh_factor(MESH[mid], lead)
         if DTNAT[mid] > 1 and lead <= 48:
             w *= 0.7
         per.setdefault(CENTRE[mid], []).append((val, w))
