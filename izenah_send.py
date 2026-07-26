@@ -3,9 +3,15 @@
 import urllib.request, urllib.parse, json, os, uuid, re, time
 API = "https://api.telegram.org/bot%s/%s"
 
-class SendError(RuntimeError):
+class SendError(Exception):
     """Echec d'envoi CONFIRME. Doit remonter : l'appelant ne doit jamais
-    enregistrer un etat 'envoye' apres cette exception."""
+    enregistrer un etat 'envoye' apres cette exception.
+
+    ATTENTION : n'herite PAS de RuntimeError, volontairement. Le moniteur
+    rattrape RuntimeError pour absorber les pannes de l'API meteo et sortir
+    en succes ; si SendError en heritait, un echec d'envoi serait avale par
+    ce meme filet et l'alerte disparaitrait sans bruit, ce que cette classe
+    existe precisement pour empecher."""
 
 def _post(token, method, fields, files=None, timeout=60, tries=3):
     """Envoie et VERIFIE. Telegram peut repondre HTTP 200 avec ok=false ;

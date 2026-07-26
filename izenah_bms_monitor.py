@@ -17,10 +17,10 @@ def _notify(send, msg):
     Regle absolue : on n'ecrit jamais l'etat anti-repetition avant ce True,
     sinon une alerte non partie est comptee comme traitee et perdue pour de bon."""
     if not send:
-        return True                      # mode --nosend : on n'ecrit pas d'etat non plus
+        return False                     # --nosend : rien n'est parti, donc rien n'est marque
     tok, chat = T.load_token(), T.load_chat()
     if not tok or not chat:
-        raise RuntimeError("secret Telegram absent : impossible d'alerter")
+        raise T.SendError("secret Telegram absent : impossible d'alerter")
     T.send_message(tok, chat, msg)       # leve SendError si l'envoi echoue
     return True
 
@@ -52,6 +52,13 @@ def watchdog_briefing(send=True):
             return
         print(">> WATCHDOG : briefing du soir manquant, envoi de rattrapage.")
         run_briefing.main(send=send, force=True)
+    except T.SendError:
+        raise                       # un echec d'envoi doit rester visible
+    except SystemExit as e:
+        # run_briefing sort en SystemExit quand un secret manque : c'est une
+        # BaseException, elle passerait a travers un except Exception et tuerait
+        # la surveillance du vent. On la convertit en echec explicite.
+        raise T.SendError("watchdog : %s" % e)
     except Exception as e:
         print(">> Watchdog briefing en echec:", e)
 
@@ -87,8 +94,19 @@ def weekly_health(send=True):
 
 def run(send=True):
     now = datetime.datetime.now()
-    watchdog_briefing(send=send)
-    weekly_health(send=send)
+    # Chaque bloc est isole : un incident sur le bilan de sante ou sur la
+    # vigilance ne doit jamais empecher la surveillance du vent, qui est la
+    # seule partie reellement critique. Un echec d'ENVOI, lui, remonte.
+    def _bloc(nom, fn):
+        try:
+            return fn()
+        except T.SendError:
+            raise
+        except Exception as ex:
+            print(">> bloc '%s' ignore (%s: %s)" % (nom, type(ex).__name__, ex))
+            return None
+    _bloc("watchdog", lambda: watchdog_briefing(send=send))
+    _bloc("sante hebdo", lambda: weekly_health(send=send))
     # --- Vigilance officielle Meteo-France (prioritaire, si cle MF_APIKEY presente) ---
     try:
         import izenah_vigilance
@@ -210,6 +228,11 @@ if __name__ == "__main__":
     try:
         m = run(send=("--nosend" not in sys.argv))
         print(m if m else "RAS : aucun épisode venteux notable dans les 48 h.")
+    except T.SendError as e:
+        # un echec d'envoi n'est JAMAIS absorbe : il doit faire echouer le job
+        # pour declencher la notification et etre visible.
+        print(">> ECHEC D'ENVOI TELEGRAM :", e)
+        raise
     except RuntimeError as e:
         # panne/rate-limit API meteo : pas un bug -> on sort proprement,
         # le passage suivant (30 min) reessaiera. Aucune alerte d'echec envoyee.
