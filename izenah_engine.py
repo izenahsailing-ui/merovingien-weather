@@ -14,7 +14,8 @@ except Exception:
 
 # ---------------- Points ----------------
 PT_PRIMAIRE = ("La Ciotat", 43.175, 5.607)          # detail + graphe
-PT_CAP_SICIE = ("Cap Sicié", 43.043, 5.858)         # acceleration
+# Cap Sicie RETIRE : il est a l'est des Embiez, donc hors de la zone.
+# Il ne doit ni s'afficher ni declencher quoi que ce soit.
 PT_MARINE   = (43.10, 5.70)                          # vagues (au large de la baie)
 MOUILLAGES = {
     # Exposition selon la direction D'OU vient le vent (0 = bien abrite .. 1 = plein expose).
@@ -85,6 +86,20 @@ DIRN = ["N","NE","E","SE","S","SW","W","NW"]
 def dir_card(deg):
     if deg is None: return "?"
     return ["N","NNE","NE","ENE","E","ESE","SE","SSE","S","SSW","SW","WSW","W","WNW","NW","NNW"][int((deg%360)/22.5+0.5)%16]
+def dir_moy(dirs, speeds=None):
+    """Moyenne VECTORIELLE des directions, ponderee par la vitesse.
+    La moyenne arithmetique donnait 180 (Sud) pour 350 et 10 (deux Nord),
+    et c'est ce cap qui choisit le mouillage."""
+    import math as _m
+    sx=sy=0.0
+    for k,d in enumerate(dirs or []):
+        if d is None: continue
+        w=1.0
+        if speeds and k<len(speeds) and speeds[k] is not None: w=max(0.5,speeds[k])
+        r=_m.radians(d); sx+=w*_m.sin(r); sy+=w*_m.cos(r)
+    if sx==0 and sy==0: return None
+    return _m.degrees(_m.atan2(sx,sy))%360
+
 def dir8(deg):
     if deg is None: return "NW"
     return DIRN[int((deg%360)/45+0.5)%8]
@@ -183,7 +198,6 @@ def primary_series(hourly, var):
 def build_brief(target="demain"):
     now=datetime.datetime.now()
     fc=om_forecast(*PT_PRIMAIRE[1:], days=10)
-    cap=om_forecast(*PT_CAP_SICIE[1:], days=2)
     ens=om_ensemble(*PT_PRIMAIRE[1:], days=12)
     mar=om_marine(*PT_MARINE, days=8)
     # BMS officiel recupere TOT : il PILOTE le feu, les fenetres et la fiabilite sur sa validite
@@ -210,6 +224,7 @@ def build_brief(target="demain"):
     MH=mar["hourly"]; wav_h=MH["wave_height"]; wav_d=MH["wave_direction"]; wav_p=MH["wave_period"]
     wav_sst=MH.get("sea_surface_temperature",[])
     swl_h=MH.get("swell_wave_height",[]); swl_d=MH.get("swell_wave_direction",[])
+    swl_p=MH.get("swell_wave_period",[])
     wwv_h=MH.get("wind_wave_height",[])
 
     arome_dir=primary_series(H,"wind_direction_10m")
@@ -232,8 +247,10 @@ def build_brief(target="demain"):
     def is_night(dt):
         # approx: nuit avant 6h ou apres 21h (ete) ; affine via sunrise/sunset si dispo
         try:
-            srises=[datetime.datetime.fromisoformat(x) for x in sun["sunrise"]]
-            ssets =[datetime.datetime.fromisoformat(x) for x in sun["sunset"]]
+            kr=next((k for k in sun if k.startswith("sunrise")), None)
+            ks=next((k for k in sun if k.startswith("sunset")), None)
+            srises=[datetime.datetime.fromisoformat(x) for x in sun[kr]]
+            ssets =[datetime.datetime.fromisoformat(x) for x in sun[ks]]
             d=dt.date()
             sr=next((s for s in srises if s.date()==d), None)
             sscur=next((s for s in ssets if s.date()==d), None)
@@ -296,9 +313,7 @@ def build_brief(target="demain"):
     wwv_max      = max((wwv_h[i] for i in day_idx if i<len(wwv_h) and wwv_h[i] is not None), default=0) if day_idx else 0
     mer_soft     = (wwv_max < 0.3 and raf_max <= 20)
     cape_max     = max((arome_cape[i] or 0) for i in idx_tom) if idx_tom else 0
-    # Cap Sicie : surcote
-    capH=cap["hourly"]; cs_idx=[i for i in range(len(capH["time"])) if datetime.datetime.fromisoformat(capH["time"][i]).date()==tomorrow and 8<=datetime.datetime.fromisoformat(capH["time"][i]).hour<=20]
-    cs_gust=max((capH["wind_gusts_10m_meteofrance_arome_france_hd"][i] for i in cs_idx if i<len(capH.get("wind_gusts_10m_meteofrance_arome_france_hd",[])) and capH["wind_gusts_10m_meteofrance_arome_france_hd"][i] is not None), default=0) if cs_idx else 0
+    cs_gust=0  # Cap Sicie retire du produit
 
     def feu(vent,raf,mer,cape,soft=False):
         # soft=True (J+1 seulement) : houle longue residuelle toleree jusqu'a 1,0 m
@@ -318,12 +333,12 @@ def build_brief(target="demain"):
         order={"G":0,"A":1,"R":2}
         if order[force_col]>order[fc_color]: fc_color=force_col
     nav_status={"G":"FAVORABLE","A":"PRUDENCE","R":"DÉCONSEILLÉ"}[fc_color]
-    dom_dir=dir8(avg([arome_dir[i] for i in day_idx])) if day_idx else "NW"
+    dom_dir=dir8(dir_moy([arome_dir[i] for i in day_idx],
+                         [cross_stats(H,"wind_speed_10m",i)[2] for i in day_idx])) if day_idx else "NW"
     if v_lo is not None and v_hi is not None and round(v_lo)!=round(v_hi):
         nav_reason="Vent %s, %d à %d kn selon les modèles (rafales %d). Mer %.1f m." % (dom_dir, round(v_lo), round(max(v_hi,vent_hi)), round(raf_max), mer_max)
     else:
         nav_reason="Vent %s, jusqu'à %d kn (rafales %d). Mer %.1f m." % (dom_dir, round(vent_hi), round(raf_max), mer_max)
-    if cs_gust>raf_max+3: nav_reason+=" Accélération au Cap Sicié (rafales %d kn)." % round(cs_gust)
     if bms_on_target: nav_reason+=" BMS officiel en cours sur ce créneau (il fait foi)."
 
     # --- probabilites d'ensemble (J+1 et au-dela) ---
@@ -376,7 +391,7 @@ def build_brief(target="demain"):
     moor=[]
     for name,info in MOUILLAGES.items():
         e=info["exp8"].get(dom_dir,0.5)
-        frac=moor_comfort(e, raf_max, mer_max)
+        frac=moor_comfort(e, raf_max, mer_max)   # recalcule plus bas sur la nuit
         moor.append(dict(name=name, frac=round(frac,2), verdict=moor_verdict(frac),
                          protected=(e<=0.33), exposed=(e>=0.60), expo_dir=round(e,2)))
     best=min(moor, key=lambda m:m["frac"])["name"]
@@ -387,7 +402,7 @@ def build_brief(target="demain"):
         if not (0 <= (times[i]-now).total_seconds() <= 48*3600): continue
         dvals=[series(H,"wind_direction_10m",m)[i] for m in MODELS
                if series(H,"wind_direction_10m",m) and i<len(series(H,"wind_direction_10m",m)) and series(H,"wind_direction_10m",m)[i] is not None]
-        dd=avg(dvals); _,_,vmean=cross_stats(H,"wind_speed_10m",i)
+        dd=dir_moy(dvals); _,_,vmean=cross_stats(H,"wind_speed_10m",i)
         if dd is None or (vmean or 0)<12: continue
         d8=dir8(dd); e_best=best_info["exp8"].get(d8,0.5); e_other=other_info["exp8"].get(d8,0.5)
         if e_best>=0.60 and e_other<=0.40 and (e_best-e_other)>=0.30:
@@ -396,21 +411,58 @@ def build_brief(target="demain"):
             bascule=dict(to=other, jour=jour, heure=times[i].strftime("%Hh"), dir=d8); break
 
     # --- mouillages NUIT PAR NUIT : ou dormir ce soir, ou dormir demain soir ---
+    # --- Confort au mouillage, refait sur la physique du roulis d'Izenah III ---
+    # Periode propre ~2,9 s (coque etroite 3,7 m pour 13,3 m). Un clapot court
+    # de 3 s la tape en plein, une houle longue de 8 s passe dessous.
+    T_ROLL, ZETA = 2.9, 0.15
+    ANG = ((30,0.25),(60,0.55),(120,1.00),(150,0.70),(181,0.45))
+    def _mag(T):
+        if not T or T<=0: return 0.0
+        r=T_ROLL/float(T)
+        return 1.0/math.sqrt((1-r*r)**2 + (2*ZETA*r)**2)
+    def _angfac(a):
+        a=abs((a+180)%360-180)
+        for lim,f in ANG:
+            if a<lim: return f
+        return 0.45
+    H_GENE = 0.60   # hauteur a partir de laquelle une houle gene vraiment
+                    # (reference d ingenierie portuaire : 0,30 m d amplitude
+                    #  pour le confort de vie a bord, soit 0,60 m de hauteur)
+    def _roll_deg(Hs,T,ang):
+        """Roulis approche : pente de la houle x amplification a la resonance
+        x incidence x porte de hauteur. Sans cette derniere, un clapot de
+        30 cm tombant pile sur la periode propre produisait un roulis
+        theorique que l on ne ressent pas dans une baie abritee."""
+        if not Hs or not T: return 0.0
+        pente=math.degrees(2*math.pi**2*Hs/(9.81*T*T))
+        return pente*_mag(T)*_angfac(ang)*min(1.0, Hs/H_GENE)
     def moor_comfort_hour(info, i):
-        """Confort/risque du mouillage a l'heure i : vent (rafales) + mer totale selon
-        l'exposition au vent, PLUS la houle residuelle (swell) qui entre au mouillage
-        meme apres la tombee du vent, selon l'exposition a SA direction."""
         dd=arome_dir[i]
         e_w=info["exp8"].get(dir8(dd),0.5) if dd is not None else 0.5
         _,g,_=cross_stats(H,"wind_gusts_10m",i); g=g or 0
-        wh=wav_h[i] if i<len(wav_h) and wav_h[i] is not None else 0
-        frac=moor_comfort(e_w,g,wh)
+        _,_,vm=cross_stats(H,"wind_speed_10m",i); vm=vm or 0
+        # La mer du vent arrive dans l'axe du vent, donc de face : elle fait
+        # tanguer, pas rouler. Seule la houle d'une AUTRE direction est en cause.
+        ww=wwv_h[i] if i<len(wwv_h) and wwv_h[i] is not None else 0
         sh=swl_h[i] if i<len(swl_h) and swl_h[i] is not None else 0
         sd=swl_d[i] if i<len(swl_d) and swl_d[i] is not None else None
-        if sh>=0.4 and sd is not None:
-            e_s=info["exp8"].get(dir8(sd),0.5)
-            frac=min(0.97, frac+min(0.25,(sh-0.3)/2.0)*e_s)
-        return frac
+        sp=swl_p[i] if i<len(swl_p) and swl_p[i] is not None else None
+        # Sous 5 noeuds le bateau ne tient plus son cap : on prend le pire angle.
+        if vm>=5 and dd is not None and sd is not None:
+            ang=sd-dd
+        else:
+            ang=90.0
+        # L'exposition au VENT gouverne la tenue du mouillage.
+        # L'exposition a la direction de la HOULE gouverne si elle entre dans
+        # la baie. Les confondre revenait a juger une houle d'ouest avec
+        # l'ouverture au sud-est : c'est ce qui rendait les deux mouillages
+        # indiscernables.
+        e_s=info["exp8"].get(dir8(sd),0.5) if sd is not None else e_w
+        roll=_roll_deg(sh,sp or 5.0,ang)*e_s + _roll_deg(ww,3.5,0.0)*e_w
+        frac=0.06+0.26*e_w                      # geometrie du mouillage
+        frac+=min(0.55,roll/12.0)               # roulis ressenti, sature a 12 deg
+        frac+=min(0.34,max(0.0,(g-18)/70.0))*(0.5+0.5*e_w)   # tenue, jusqu'a 60 kn
+        return max(0.03,min(0.99,frac))
     def night_idx(d0):
         a=datetime.datetime.combine(d0, datetime.time(20)); b=a+datetime.timedelta(hours=12)
         return [i for i in range(n) if a<=times[i]<=b]
@@ -455,16 +507,16 @@ def build_brief(target="demain"):
             g=cross_long("wind_gusts_10m",i)
             if g: gusts.append(max(g))
             d=cross_long("wind_direction_10m",i)
-            if d: dirs.append(avg(d))
+            if d: dirs.append(dir_moy(d))
         if not vmaxs: continue
         vmin=round(min(vmins)); vmax=round(max(vmaxs)); f1,f2=beaufort(vmin),beaufort(vmax)
         force=("force %d"%f2) if f1==f2 else ("force %d à %d"%(f1,f2))
         mer=max((wav_h[i] for i in idx if i<len(wav_h) and wav_h[i] is not None), default=None)
-        hdir=dir8(avg([wav_d[i] for i in idx if i<len(wav_d) and wav_d[i] is not None])) if idx else "?"
+        hdir=dir8(dir_moy([wav_d[i] for i in idx if i<len(wav_d) and wav_d[i] is not None])) if idx else "?"
         sp=avg(spreads2) or 0
         pct_c=int(round(100*max(0.0,min(1.0,1.15-1.1*sp))))
         gmax_day=round(max(gusts)) if gusts else None
-        consensus.append(dict(day=fr_jour(day), wdir=dir8(avg(dirs)) if dirs else "?",
+        consensus.append(dict(day=fr_jour(day), wdir=dir8(dir_moy(dirs)) if dirs else "?",
             vmin=vmin, vmax=vmax, force=force, gust=gmax_day,
             houle_dir=hdir, houle=("%.1f m"%mer).replace(".",",") if mer is not None else "n/d",
             nav=feu(vmax, gmax_day or 0, mer or 0, 0),
@@ -585,7 +637,7 @@ if __name__=="__main__":
     print("Navigation demain:", b["nav"]["status"], "|", b["nav"]["reason"])
     print("Confiance:", b["confiance"], "| vent_max %d kn, rafales %d, mer %.1f m, CAPE %d"%(b["vent_max"],b["raf_max"],b["mer_max"],b["cape_max"]))
     print("P(rafales>30kn) demain:", b["p_raf30_tom"], "%")
-    print("Orage:", b["orage"], "| Cap Sicié rafales:", b["cs_gust"], "kn")
+    print("Orage:", b["orage"])
     print("Mouillage conseillé:", b["mouillage_best"])
     for m in b["mouillages"]:
         print("  -", m["name"], "confort=%.2f"%m["frac"], m["verdict"], "(protégé)" if m["protected"] else ("(exposé)" if m["exposed"] else ""))

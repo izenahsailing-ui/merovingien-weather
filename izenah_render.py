@@ -249,7 +249,7 @@ def narrative(b):
         if fen and fen["kind"] in ("G","A"): txt+=" Seul créneau plus maniable : <b>%s à %s</b>."%(fen["frm"],fen["to"])
         reco.append((JOUR,txt))
     elif nav["color"]=="A":
-        txt="Sortie possible avec prudence ; surveille les rafales (%d kn)%s."%(b["raf_max"]," et le Cap Sicié" if b["cs_gust"]>b["raf_max"]+3 else "")
+        txt="Sortie possible avec prudence ; surveille les rafales (%d kn)."%(b["raf_max"],)
         if fen and fen["kind"]=="G": txt+=" Meilleure fenêtre : <b>%s à %s</b>."%(fen["frm"],fen["to"])
         elif fen and fen["kind"]=="A": txt+=" Créneau le plus sûr : <b>%s à %s</b>."%(fen["frm"],fen["to"])
         reco.append((JOUR,txt))
@@ -277,7 +277,7 @@ def narrative(b):
     if b.get("contexte"): concl.append("<b>Situation :</b> %s."%b["contexte"])
     concl.append(moor_line)
     if b["raf_max"]>=34: concl.append("<b>Coup de vent :</b> rafales %d kn, mer %.1f m. <font color='#B3261E'><b>Prudence maximale</b></font>."%(b["raf_max"],b["mer_max"]))
-    elif b["raf_max"]>=30: concl.append("<b>Rafales :</b> jusqu'à %d kn, surtout au Cap Sicié, vigilance."%b["raf_max"])
+    elif b["raf_max"]>=30: concl.append("<b>Rafales :</b> jusqu'à %d kn, vigilance."%b["raf_max"])
     else: concl.append("<b>Mer :</b> %.1f m, conditions maniables."%b["mer_max"])
     if b["tendance"]: lab,fr=b["tendance"][0];concl.append("<b>Tendance :</b> %s, probabilité %d%%."%(lab.lower(),round(fr*100)))
     return [left,right],reco,concl
@@ -348,7 +348,7 @@ def render(b, out):
     hd=S("hd",fontName="Helvetica-Bold",fontSize=9,textColor=colors.white,alignment=2,leading=11.5)
     he=S("he",fontName="Helvetica-Oblique",fontSize=7.4,textColor=GOLD,alignment=2,leading=9.5)
     head=Table([[[Paragraph("BRIEFING MARINE&nbsp;&nbsp;<font color='#D6A93B'>IZENAH</font>",ht),
-       Paragraph("La Ciotat &nbsp;•&nbsp; Bandol &nbsp;•&nbsp; Cap Sicié &nbsp;•&nbsp; Les Embiez &nbsp;|&nbsp; au mouillage, 24h",hsx)],
+       Paragraph("La Ciotat &nbsp;•&nbsp; Bandol &nbsp;•&nbsp; Sanary &nbsp;•&nbsp; Les Embiez &nbsp;|&nbsp; au mouillage, 24h",hsx)],
        [Paragraph(b["generated"],hd),Paragraph("briefing automatique · données réelles",he)]]],colWidths=[W*0.62,W*0.38])
     head.setStyle(TableStyle([("BACKGROUND",(0,0),(-1,-1),NAVY),("VALIGN",(0,0),(-1,-1),"MIDDLE"),("LEFTPADDING",(0,0),(-1,-1),10),("RIGHTPADDING",(0,0),(-1,-1),10),("TOPPADDING",(0,0),(-1,-1),7),("BOTTOMPADDING",(0,0),(-1,-1),7)]))
     story+=[head,HRFlowable(width="100%",thickness=2,color=GOLD,spaceAfter=5),AlertStrip(W,alert),Spacer(1,6)]
