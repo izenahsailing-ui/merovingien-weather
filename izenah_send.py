@@ -80,7 +80,8 @@ def send_document(token, chat_id, path, caption=""):
         content = f.read()
     return _post(token, "sendDocument",
                  {"chat_id": str(chat_id), "caption": caption[:1000]},
-                 {"document": (os.path.basename(path), content, "application/pdf")})
+                 {"document": (os.path.basename(path), content,
+                  "text/html" if path.endswith(".html") else "application/pdf")})
 
 def get_updates(token):
     """Pour recuperer le chat_id : ecris un message au bot puis appelle ceci."""

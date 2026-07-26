@@ -29,10 +29,54 @@ MOUILLAGES = {
     "La Madrague (St-Cyr)": dict(lat=43.178, lon=5.700, exp8={
         "N":0.35, "NE":0.20, "E":0.12, "SE":0.28, "S":0.80, "SW":0.85, "W":0.90, "NW":0.92}),
 }
-MODELS = ["meteofrance_arome_france_hd", "meteofrance_arpege_europe", "ecmwf_ifs025", "icon_eu", "gfs_seamless"]
-# Poids par modele (mailles fines credibles > modeles globaux) pour le scenario retenu
+# --- Sources, verifiees en direct sur l API le 26/07/2026 ---
+# (id, centre, maille km, portee h, pas natif h)
+SOURCES = [
+    ("meteofrance_arome_france_hd", "MF",    1.5,  48, 1),
+    ("meteofrance_arpege_europe",   "MF",   11.0,  96, 1),
+    ("ecmwf_ifs025",                "ECMWF",25.0, 360, 3),
+    ("icon_eu",                     "DWD",   7.0, 120, 1),
+    ("icon_global",                 "DWD",  11.0, 180, 1),
+    ("gfs_seamless",                "NCEP", 13.0, 384, 1),
+]
+MODELS  = [x[0] for x in SOURCES]
+CENTRE  = {x[0]: x[1] for x in SOURCES}
+MESH    = {x[0]: x[2] for x in SOURCES}
+PORTEE  = {x[0]: x[3] for x in SOURCES}
+DTNAT   = {x[0]: x[4] for x in SOURCES}
 W_MODEL = {"meteofrance_arome_france_hd": 3.0, "meteofrance_arpege_europe": 2.0,
-           "ecmwf_ifs025": 2.0, "icon_eu": 1.0, "gfs_seamless": 1.0}
+           "ecmwf_ifs025": 2.0, "icon_eu": 1.0, "icon_global": 1.0, "gfs_seamless": 1.0}
+
+def centre_weight(centre, lead_h):
+    """Une VOIX PAR CENTRE. AROME est emboite dans ARPEGE : les compter
+    separement donnait deux voix a Meteo-France pour un seul avis et gonflait
+    mecaniquement l accord affiche."""
+    d = lead_h / 24.0
+    if centre == "MF":    return 3.0 if d <= 2 else (1.6 if d <= 4 else 0.0)
+    if centre == "ECMWF": return 1.6 if d <= 2 else 2.2
+    if centre == "DWD":   return 1.4 if d <= 2 else 1.6
+    if centre == "NCEP":  return 1.0
+    return 1.0
+
+def mesh_factor(km, lead_h):
+    if lead_h > 48: return 1.0
+    return min(1.0, (8.0 / km) ** 0.35)
+
+GUST_RATIO_MIN, GUST_RATIO_MAX = 1.05, 2.60
+
+def wquantile(pairs, p):
+    pairs = sorted((v, w) for v, w in pairs if v is not None and w > 0)
+    if not pairs: return None
+    if len(pairs) == 1: return pairs[0][0]
+    tot = sum(w for _, w in pairs); acc = 0.0
+    prev_v, prev_c = pairs[0][0], 0.0
+    for v, w in pairs:
+        c0 = acc / tot; acc += w; cm = (c0 + acc / tot) / 2.0
+        if cm >= p:
+            if cm <= prev_c: return v
+            return prev_v + (p - prev_c) / (cm - prev_c) * (v - prev_v)
+        prev_v, prev_c = v, cm
+    return pairs[-1][0]
 
 # ---------------- Seuils Standard croisiere ----------------
 S_VENT = (14, 22)      # favorable<=14 ; prudence<=22 ; sinon deconseille
@@ -67,11 +111,56 @@ def om_forecast(lat, lon, days=7):
              daily="sunrise,sunset")
     return fetch("https://api.open-meteo.com/v1/forecast?" + urllib.parse.urlencode(q))
 
+ENSEMBLES = [("ecmwf_ifs025","ECMWF"),("icon_eu_eps","DWD"),
+             ("gfs025","NCEP"),("ukmo_global_ensemble_20km","UKMO")]
+
 def om_ensemble(lat, lon, days=12):
+    """Ensemble principal (ECMWF, 51 scenarios) : conserve tel quel pour la
+    compatibilite du reste du moteur."""
     q = dict(latitude=lat, longitude=lon, timezone="Europe/Paris", wind_speed_unit="kn",
              forecast_days=days, models="ecmwf_ifs025",
              hourly="wind_speed_10m,wind_gusts_10m")
     return fetch("https://ensemble-api.open-meteo.com/v1/ensemble?" + urllib.parse.urlencode(q))
+
+def om_ensembles_all(lat, lon, days=10):
+    """Les 4 ensembles disponibles, soit ~140 scenarios de 4 centres
+    independants. Identifiants verifies en direct : icon_eps et
+    gfs_ensemble_025 ne repondent pas, bom et gem n ont pas de rafales."""
+    out = {}
+    for mid, centre in ENSEMBLES:
+        try:
+            q = dict(latitude=lat, longitude=lon, timezone="Europe/Paris", wind_speed_unit="kn",
+                     forecast_days=days, models=mid, hourly="wind_speed_10m,wind_gusts_10m")
+            out[mid] = (centre, fetch("https://ensemble-api.open-meteo.com/v1/ensemble?"
+                                      + urllib.parse.urlencode(q)))
+        except Exception:
+            pass
+    return out
+
+def ens_day(ens_all, var, day, h0=8, h1=20):
+    """Distribution des maxima journaliers, UN CENTRE = UNE VOIX (et non un
+    membre = une voix, qui laisserait le plus gros ensemble decider seul)."""
+    per = {}
+    for mid, (centre, data) in ens_all.items():
+        if not data: continue
+        EH = data["hourly"]
+        et = [datetime.datetime.fromisoformat(t) for t in EH["time"]]
+        idx = [k for k in range(len(et)) if et[k].date() == day and h0 <= et[k].hour <= h1]
+        if not idx: continue
+        for mk in [k for k in EH.keys() if k.startswith(var)]:
+            ser = EH[mk]
+            mx = max((ser[k] for k in idx if k < len(ser) and ser[k] is not None), default=None)
+            if mx is not None:
+                per.setdefault(centre, []).append(mx)
+    if not per: return None
+    pairs, allv = [], []
+    for centre, vals in per.items():
+        w = 1.0 / len(vals)
+        pairs += [(v, w) for v in vals]
+        allv += vals
+    return dict(q50=wquantile(pairs, .5), q90=wquantile(pairs, .9),
+                n=len(allv), centres=sorted(per.keys()),
+                p=lambda thr, _a=allv: 100.0 * sum(1 for v in _a if v > thr) / len(_a))
 
 def om_marine(lat, lon, days=8):
     # houle DECOMPOSEE : mer de vent (tombe avec le vent) vs houle residuelle
@@ -142,22 +231,62 @@ def cross_stats(hourly, var, i):
     if not vals: return (None,None,None)
     return (min(vals), max(vals), sum(vals)/len(vals))
 
-def cred_high(hourly, var, i):
-    """Scenario haut credible au pas i : max(AROME, percentile 75 pondere des modeles).
-    Pour la securite nav on ne lisse jamais le danger par la moyenne."""
-    vals=[]; wts=[]
+def _lead_h(hourly, i):
+    try:
+        t = datetime.datetime.fromisoformat(hourly["time"][i])
+        return max(0.0, (t - datetime.datetime.now()).total_seconds() / 3600.0)
+    except Exception:
+        return 24.0
+
+def wq(hourly, var, i, p):
+    """Quantile pondere des modeles a l heure i : une voix par centre, portee
+    respectee, rafales invraisemblables ecartees. Remplace l ancien cred_high
+    qui n etait pas un percentile 75 mais, avec ces poids, toujours le 2e
+    modele le plus fort, donc un quasi-maximum surestimant de 3 a 6 noeuds."""
+    lead = _lead_h(hourly, i)
+    per = {}
+    for mid in MODELS:
+        if lead > PORTEE[mid]:
+            continue
+        sser = series(hourly, var, mid)
+        if not sser or i >= len(sser) or sser[i] is None:
+            continue
+        val = sser[i]
+        if var == "wind_gusts_10m":
+            sv = series(hourly, "wind_speed_10m", mid)
+            v = sv[i] if sv and i < len(sv) else None
+            if v and v > 3:
+                r = val / v
+                if r < GUST_RATIO_MIN or r > GUST_RATIO_MAX:
+                    continue
+        w = mesh_factor(MESH[mid], lead)
+        if DTNAT[mid] > 1 and lead <= 48:
+            w *= 0.7
+        per.setdefault(CENTRE[mid], []).append((val, w))
+    pairs = []
+    for c, lst in per.items():
+        cw = centre_weight(c, lead)
+        if cw <= 0: continue
+        sw = sum(w for _, w in lst) or 1.0
+        pairs += [(v, cw * w / sw) for v, w in lst]
+    return wquantile(pairs, p)
+
+def n_centres(hourly, var, i):
+    lead = _lead_h(hourly, i)
+    out = set()
     for m in MODELS:
-        s=series(hourly, var, m)
-        if s and i<len(s) and s[i] is not None:
-            vals.append(s[i]); wts.append(W_MODEL.get(m,1.0))
-    if not vals: return None
-    pairs=sorted(zip(vals,wts)); tot=sum(w for _,w in pairs); acc=0; p75=pairs[-1][0]
-    for v,w in pairs:
-        acc+=w
-        if acc>=0.75*tot: p75=v; break
-    a=series(hourly, var, "meteofrance_arome_france_hd")
-    av=a[i] if a and i<len(a) and a[i] is not None else None
-    return max(av,p75) if av is not None else p75
+        ss = series(hourly, var, m)
+        if lead <= PORTEE[m] and ss and i < len(ss) and ss[i] is not None:
+            out.add(CENTRE[m])
+    return len(out)
+
+def cred_high(hourly, var, i):
+    """Valeur retenue pour le feu : la MEDIANE ponderee, pas un quasi-maximum."""
+    return wq(hourly, var, i, 0.50)
+
+def cred_p90(hourly, var, i):
+    """Scenario haut credible, reserve a la ligne 'prepare-toi a'."""
+    return wq(hourly, var, i, 0.90)
 
 def _run_stability(target_day, vent_hi, raf_max, dom_dir):
     """Stabilite run-a-run : compare la prevision du jour au brief archive le plus
@@ -199,6 +328,8 @@ def build_brief(target="demain"):
     now=datetime.datetime.now()
     fc=om_forecast(*PT_PRIMAIRE[1:], days=10)
     ens=om_ensemble(*PT_PRIMAIRE[1:], days=12)
+    try: ens_all=om_ensembles_all(*PT_PRIMAIRE[1:], days=10)
+    except Exception: ens_all={}
     mar=om_marine(*PT_MARINE, days=8)
     # BMS officiel recupere TOT : il PILOTE le feu, les fenetres et la fiabilite sur sa validite
     try:
@@ -308,6 +439,9 @@ def build_brief(target="demain"):
     # rafales J+1 : scenario haut credible (AROME pondere x3 / p75), PAS le pire
     # modele global isole — a moins de 48 h, la maille fine fait foi
     raf_max      = max((cred_high(H,"wind_gusts_10m",i) or 0) for i in day_idx) if day_idx else 0
+    raf_p90      = max((cred_p90(H,"wind_gusts_10m",i) or 0) for i in day_idx) if day_idx else 0
+    vent_p90     = max((cred_p90(H,"wind_speed_10m",i) or 0) for i in day_idx) if day_idx else 0
+    n_cen        = min((n_centres(H,"wind_speed_10m",i) for i in day_idx), default=0)
     mer_max      = max((wav_h[i] for i in idx_tom if i<len(wav_h) and wav_h[i] is not None), default=0)
     # mer de vent vs houle residuelle : une houle longue sans vent n'est pas un danger
     wwv_max      = max((wwv_h[i] for i in day_idx if i<len(wwv_h) and wwv_h[i] is not None), default=0) if day_idx else 0
@@ -325,6 +459,14 @@ def build_brief(target="demain"):
         if cape>=CAPE_ORAGE and c=="G": c="A"
         return c
     fc_color=feu(vent_max_moy,raf_max,mer_max,cape_max,soft=mer_soft)
+    # QUATRIEME ETAT. Avant, une panne de donnees produisait des zeros, donc un
+    # feu VERT et une "fiabilite elevee" : une panne deguisee en beau temps sur
+    # un outil de securite. Desormais l absence de donnee ne peut jamais valoir
+    # beau temps ; a defaut de savoir, on refuse de se prononcer.
+    data_ok = bool(day_idx) and n_cen >= 2 and vent_max_moy > 0
+    mer_ok  = any((wav_h[i] is not None) for i in idx_tom if i < len(wav_h))
+    if not (data_ok and mer_ok):
+        fc_color = "R"
     # Le BMS officiel FAIT FOI : s'il couvre une partie de la journee cible,
     # le feu ne peut pas etre meilleur que Prudence (Deconseille si coup de vent+).
     bms_on_target=any(in_bms(times[i]) for i in day_idx) if day_idx else False
@@ -333,6 +475,8 @@ def build_brief(target="demain"):
         order={"G":0,"A":1,"R":2}
         if order[force_col]>order[fc_color]: fc_color=force_col
     nav_status={"G":"FAVORABLE","A":"PRUDENCE","R":"DÉCONSEILLÉ"}[fc_color]
+    if not (data_ok and mer_ok):
+        nav_status = "DONNÉES INSUFFISANTES"
     dom_dir=dir8(dir_moy([arome_dir[i] for i in day_idx],
                          [cross_stats(H,"wind_speed_10m",i)[2] for i in day_idx])) if day_idx else "NW"
     if v_lo is not None and v_hi is not None and round(v_lo)!=round(v_hi):
@@ -340,6 +484,13 @@ def build_brief(target="demain"):
     else:
         nav_reason="Vent %s, jusqu'à %d kn (rafales %d). Mer %.1f m." % (dom_dir, round(vent_hi), round(raf_max), mer_max)
     if bms_on_target: nav_reason+=" BMS officiel en cours sur ce créneau (il fait foi)."
+    if not (data_ok and mer_ok):
+        manque=[]
+        if not day_idx or vent_max_moy<=0: manque.append("le vent")
+        if n_cen<2: manque.append("un second centre de prévision")
+        if not mer_ok: manque.append("l'état de la mer")
+        nav_reason=("Données incomplètes : %s. Je ne me prononce pas. "
+                    "Consulte Météo-France avant de décider." % " et ".join(manque))
 
     # --- probabilites d'ensemble (J+1 et au-dela) ---
     EH=ens["hourly"]; et=[datetime.datetime.fromisoformat(t) for t in EH["time"]]
@@ -384,7 +535,10 @@ def build_brief(target="demain"):
         conf_pct=min(conf_pct,55); run_note="bulletin officiel plus sévère que les modèles"
     elif bms_on_target:
         conf_pct=min(100,conf_pct+10); run_note="confirmé par le BMS officiel"
+    if not (data_ok and mer_ok):
+        conf_pct=0; run_note="données insuffisantes"
     conf="ÉLEVÉE" if conf_pct>=70 else ("MODÉRÉE" if conf_pct>=50 else "FAIBLE")
+    if conf_pct==0: conf="NON CALCULABLE"
     conf_detail="Modèles d'accord à %d%% · scénarios à %d%% · %s"%(round(100*s_mod),round(100*s_ens),run_note)
 
     # --- mouillages : confort/risque a partir de l'exposition directionnelle (toutes directions) ---
@@ -515,7 +669,11 @@ def build_brief(target="demain"):
         hdir=dir8(dir_moy([wav_d[i] for i in idx if i<len(wav_d) and wav_d[i] is not None])) if idx else "?"
         sp=avg(spreads2) or 0
         pct_c=int(round(100*max(0.0,min(1.0,1.15-1.1*sp))))
-        gmax_day=round(max(gusts)) if gusts else None
+        eq=ens_day(ens_all,"wind_gusts_10m",day) if ens_all else None
+        if eq and eq["q90"] is not None:
+            gmax_day=round(eq["q90"])      # ~140 scenarios, 4 centres
+        else:
+            gmax_day=round(max(gusts)) if gusts else None
         consensus.append(dict(day=fr_jour(day), wdir=dir8(dir_moy(dirs)) if dirs else "?",
             vmin=vmin, vmax=vmax, force=force, gust=gmax_day,
             houle_dir=hdir, houle=("%.1f m"%mer).replace(".",",") if mer is not None else "n/d",
@@ -612,7 +770,9 @@ def build_brief(target="demain"):
         fenetre=fenetre, contexte=contexte, target_day=tomorrow.isoformat(),
         dom_dir=dom_dir, vent_lo=round(v_lo or 0),
         vent_max=round(vent_max_moy), raf_max=round(raf_max), mer_max=round(mer_max,1),
-        cape_max=round(cape_max), cs_gust=round(cs_gust),
+        cape_max=round(cape_max), cs_gust=0,
+        vent_p90=round(vent_p90), raf_p90=round(raf_p90),
+        n_centres=n_cen, data_ok=bool(data_ok and mer_ok),
         p_raf30_tom=p_raf30_tom,
         mouillages=moor, mouillage_best=best, mouillage_bascule=bascule,
         nuits=nights, moor_change=moor_change,
