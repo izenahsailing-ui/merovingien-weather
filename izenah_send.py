@@ -1,9 +1,37 @@
 # -*- coding: utf-8 -*-
 """IZENAH — envoi Telegram (bot). Stdlib uniquement (pas de dependance)."""
-import urllib.request, urllib.parse, json, os, uuid, re
+import urllib.request, urllib.parse, json, os, uuid, re, time
 API = "https://api.telegram.org/bot%s/%s"
 
-def _post(token, method, fields, files=None, timeout=60):
+class SendError(Exception):
+    """Echec d'envoi CONFIRME. Doit remonter : l'appelant ne doit jamais
+    enregistrer un etat 'envoye' apres cette exception.
+
+    ATTENTION : n'herite PAS de RuntimeError, volontairement. Le moniteur
+    rattrape RuntimeError pour absorber les pannes de l'API meteo et sortir
+    en succes ; si SendError en heritait, un echec d'envoi serait avale par
+    ce meme filet et l'alerte disparaitrait sans bruit, ce que cette classe
+    existe precisement pour empecher."""
+
+def _post(token, method, fields, files=None, timeout=60, tries=3):
+    """Envoie et VERIFIE. Telegram peut repondre HTTP 200 avec ok=false ;
+    l'ancienne version renvoyait ce JSON sans le lire, et l'appelant marquait
+    le message comme envoye. Un briefing ou une alerte pouvait donc etre perdu
+    en silence. On retente, puis on leve une exception si ce n'est pas parti."""
+    last = None
+    for k in range(tries):
+        try:
+            res = _post_once(token, method, fields, files, timeout)
+            if isinstance(res, dict) and res.get("ok"):
+                return res
+            last = (res or {}).get("description", "reponse sans ok=true")
+        except Exception as ex:
+            last = "%s: %s" % (type(ex).__name__, ex)
+        if k < tries - 1:
+            time.sleep(3 * (k + 1))
+    raise SendError("%s a echoue apres %d tentatives : %s" % (method, tries, last))
+
+def _post_once(token, method, fields, files=None, timeout=60):
     url = API % (token, method)
     if not files:
         data = urllib.parse.urlencode(fields).encode()
@@ -22,8 +50,30 @@ def _post(token, method, fields, files=None, timeout=60):
     with urllib.request.urlopen(req, timeout=timeout) as r:
         return json.loads(r.read().decode())
 
+TG_MAX = 4000   # limite Telegram 4096, marge de securite
+
 def send_message(token, chat_id, text):
-    return _post(token, "sendMessage", {"chat_id": chat_id, "text": text, "disable_web_page_preview": "true"})
+    """Decoupe si necessaire : au-dela de 4096 caracteres Telegram refuse le
+    message entier, ce qui faisait perdre le briefing quand un bulletin
+    officiel etait long."""
+    text = text or ""
+    if len(text) <= TG_MAX:
+        return _post(token, "sendMessage",
+                     {"chat_id": chat_id, "text": text, "disable_web_page_preview": "true"})
+    parts, cur = [], ""
+    for line in text.split("\n"):
+        if len(cur) + len(line) + 1 > TG_MAX:
+            parts.append(cur); cur = line
+        else:
+            cur = (cur + "\n" + line) if cur else line
+    if cur:
+        parts.append(cur)
+    res = None
+    for i, p in enumerate(parts):
+        suffix = "" if len(parts) == 1 else ("\n\n(%d/%d)" % (i + 1, len(parts)))
+        res = _post(token, "sendMessage",
+                    {"chat_id": chat_id, "text": p + suffix, "disable_web_page_preview": "true"})
+    return res
 
 def send_document(token, chat_id, path, caption=""):
     with open(path, "rb") as f:
