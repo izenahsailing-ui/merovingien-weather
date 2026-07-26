@@ -328,7 +328,7 @@ def synthese_telegram(b):
     lines+=[mline,
            "",
            "🔗 Officiel Météo-France (secteur) : "+MF_LINK,
-           "Détail complet dans le PDF ci-joint."]
+           "Détail complet dans le rapport ci-joint."]
     return "\n".join(lines)
 
 def render(b, out):

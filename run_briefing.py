@@ -15,6 +15,7 @@ Usage: python3 run_briefing.py [--nosend] [--force]
 import os, json, datetime, sys, shutil
 from izenah_engine import build_brief
 from izenah_render import render, synthese_telegram
+from izenah_render_html import render_html
 import izenah_send
 
 BASE = os.path.dirname(os.path.abspath(__file__))
@@ -81,14 +82,22 @@ def main(send=True, force=False):
     else:
         print(">> Envoi desactive (--nosend) : l'etat n'est PAS marque envoye.")
 
+    # Rapport interactif : meme rendu que le PDF, mais rien n est tronque et le
+    # detail se deplie. Aucun JavaScript : Telegram le desactive sur iPhone,
+    # donc tout repose sur du HTML et du CSS natifs.
+    html = os.path.join(ARCH, "briefing_pour_%s.html" % target)
     pdf = os.path.join(ARCH, "briefing_pour_%s.pdf" % target)
     try:
-        render(b, pdf)
+        render_html(b, html)
+        try: shutil.copy(html, os.path.join(BASE, "Briefing_Izenah.html"))
+        except Exception: pass
+        render(b, pdf)          # PDF conserve en archive
         try: shutil.copy(pdf, os.path.join(BASE, "Briefing_Izenah.pdf"))
         except Exception: pass
         if send:
-            izenah_send.send_document(tok, chat, pdf, caption="Briefing détaillé pour le %s" % target)
-            print(">> Document envoye.")
+            izenah_send.send_document(tok, chat, html,
+                                      caption="Briefing interactif pour le %s" % target)
+            print(">> Rapport interactif envoye.")
     except Exception as ex:
         print(">> Document non envoye (%s: %s). La synthese, elle, est partie." % (type(ex).__name__, ex))
         if send:
@@ -98,7 +107,7 @@ def main(send=True, force=False):
                     "La synthèse ci-dessus reste valable.")
             except Exception:
                 pass
-    return pdf
+    return html
 
 if __name__ == "__main__":
     main(send=("--nosend" not in sys.argv), force=("--force" in sys.argv))
