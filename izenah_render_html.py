@@ -89,7 +89,7 @@ def chart_svg(ch):
     ymax = max(40, (max(ch["gust"] + ch["mx"]) // 10 + 1) * 10)
     X = lambda i: L + aw * i / max(1, n - 1)
     Y = lambda v: T + ah * (1 - min(v, ymax) / ymax)
-    s = ['<svg viewBox="0 0 %d %d" class="chart" preserveAspectRatio="none">' % (W, H)]
+    s = ['<svg viewBox="0 0 %d %d" class="chart">' % (W, H)]
     # bandes de seuil (valables pour le VENT MOYEN)
     for lo, hi, c in ((0, 14, BG_G), (14, 22, BG_A), (22, ymax, BG_R)):
         s.append('<rect x="%.1f" y="%.1f" width="%.1f" height="%.1f" fill="%s" opacity=".55"/>'
@@ -329,9 +329,9 @@ def bloc_attention(b):
 # ---------------- Page ----------------
 CSS = """
 *{box-sizing:border-box}
-body{margin:0;background:#EAEFF3;color:INK;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;
+body{margin:0;background:#EAEFF3;min-width:794px;color:INK;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;
  font-size:14px;line-height:1.45;-webkit-font-smoothing:antialiased}
-.page{max-width:1060px;margin:0 auto;background:#fff;padding:0 0 34px;box-shadow:0 2px 18px rgba(15,40,60,.10)}
+.page{width:794px;margin:0 auto;background:#fff;padding:0 0 34px;box-shadow:0 2px 18px rgba(15,40,60,.10)}
 .inner{padding:0 22px}
 .hd{background:NAVY;color:#fff;padding:16px 22px;display:flex;align-items:flex-end;gap:14px;flex-wrap:wrap}
 .hd h1{margin:0;font-size:23px;letter-spacing:.4px;font-weight:800}
@@ -342,7 +342,7 @@ body{margin:0;background:#EAEFF3;color:INK;font-family:-apple-system,BlinkMacSys
 .rule{height:3px;background:GOLD}
 .grid2{display:grid;grid-template-columns:1fr 1fr}
 .gap{gap:12px}
-@media(max-width:760px){.grid2{grid-template-columns:1fr}}
+
 .alert{border-radius:9px;padding:12px 14px;color:#fff;display:flex;gap:11px;align-items:flex-start}
 .alert .ic{width:26px;height:26px;border-radius:50%;background:rgba(255,255,255,.22);display:flex;
  align-items:center;justify-content:center;font-weight:800;flex:0 0 auto}
@@ -371,8 +371,8 @@ h3 em{margin-left:auto;font-style:italic;font-weight:400;font-size:11.5px;color:
 .reco .rl{display:flex;gap:12px;align-items:flex-start;margin:6px 0;font-size:13px}
 .reco .pill{background:GOLD;color:NAVY;font-size:10.5px;font-weight:800;letter-spacing:.6px;padding:3px 9px;
  border-radius:4px;flex:0 0 82px;text-align:center;margin-top:1px}
-.tw{overflow-x:auto;-webkit-overflow-scrolling:touch}
-table.det{width:100%;border-collapse:collapse;font-size:12.5px;min-width:720px}
+.tw{}
+table.det{width:100%;border-collapse:collapse;font-size:12px;table-layout:fixed}
 table.det th{background:NAVY2;color:#fff;text-align:left;padding:7px 9px;font-size:11px;letter-spacing:.4px;font-weight:700}
 table.det th small{font-weight:400;opacity:.8;font-size:9.5px}
 table.det td{padding:7px 9px;border-bottom:1px solid #EDF1F4}
@@ -385,7 +385,7 @@ table.det span.sub{display:block;font-size:10.5px;color:INK2;font-weight:400}
 tr.nuit td.w span{color:#9DB4C6}
 .bul{width:9px;height:9px;border-radius:50%;display:inline-block;margin-right:7px}
 .cf{color:#fff;font-size:11px;font-weight:700;padding:3px 11px;border-radius:5px;display:inline-block}
-.chart{width:100%;height:250px;display:block}
+.chart{width:100%;height:auto;display:block}
 .chart .ax{font-size:11px;fill:INK2;text-anchor:end}
 .chart .bf{font-size:10px;fill:#8FA3B3}
 .chart .hx{font-size:10.5px;fill:INK2;text-anchor:middle}
@@ -429,7 +429,7 @@ def build_css():
 def render_html(b, path="Briefing_Izenah.html"):
     zone = "La Ciotat · Bandol · Sanary · Les Embiez"
     doc = """<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=794">
 <title>Briefing marine Izenah</title><style>%s</style></head><body>
 <div class="page">
   <div class="hd">
