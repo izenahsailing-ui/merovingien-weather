@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """IZENAH — moniteur 'coup de vent' (équivalent BMS), sans clé API.
-Surveille les 48 prochaines heures sur La Ciotat + Cap Sicié et alerte sur
+Surveille les 48 prochaines heures sur La Ciotat et alerte sur
 Telegram DÈS qu'un épisode venteux dangereux apparaît dans les prévisions
 (avec son horaire). Anti-spam via bms_state.json. À lancer chaque heure."""
 import datetime, json, os, sys, re
@@ -146,25 +146,22 @@ def run(send=True):
 
     # --- Surveillance modele (coup de vent imminent) ---
     fc = E.om_forecast(*E.PT_PRIMAIRE[1:], days=3)
-    cap = E.om_forecast(*E.PT_CAP_SICIE[1:], days=3)
     H = fc["hourly"]; times = [datetime.datetime.fromisoformat(t) for t in H["time"]]; n = len(times)
     win = [i for i in range(n) if 0 <= (times[i] - now).total_seconds() <= HORIZON_H * 3600]
     if not win:
         return None
+    # MEME ESTIMATEUR QUE LE BRIEFING. Le moniteur utilisait la moyenne
+    # inter-modeles pour le vent et le maximum pour la rafale, donc deux
+    # methodes que le briefing avait bannies : il pouvait annoncer un coup de
+    # vent la ou le briefing affichait prudence, pour le meme creneau.
     peak_s = peak_g = 0; start_i = None
     for i in win:
-        _, gmx, _ = E.cross_stats(H, "wind_gusts_10m", i)
-        _, _, smn = E.cross_stats(H, "wind_speed_10m", i)
-        g = gmx or 0; s = smn or 0
+        g = E.cred_high(H, "wind_gusts_10m", i) or 0
+        s = E.cred_high(H, "wind_speed_10m", i) or 0
         peak_g = max(peak_g, g); peak_s = max(peak_s, s)
         if start_i is None and (g >= 34 or s >= 28):
             start_i = i
-    # Cap Sicié (AROME) sur 48 h
-    capH = cap["hourly"]; ct = [datetime.datetime.fromisoformat(t) for t in capH["time"]]
-    cg = capH.get("wind_gusts_10m_meteofrance_arome_france_hd", [])
-    cidx = [i for i in range(len(ct)) if 0 <= (ct[i] - now).total_seconds() <= HORIZON_H * 3600]
-    cs = max((cg[i] for i in cidx if i < len(cg) and cg[i] is not None), default=0)
-    peak_g = max(peak_g, cs)
+    cs = 0   # Cap Sicie retire : hors zone, il ne doit rien declencher
     # probabilité d'ensemble (rafales > 34 kn sur 48 h)
     ens = E.om_ensemble(*E.PT_PRIMAIRE[1:], days=3)
     EH = ens["hourly"]; et = [datetime.datetime.fromisoformat(t) for t in EH["time"]]
@@ -213,12 +210,12 @@ def run(send=True):
         return None  # déjà alerté pour cet épisode/niveau (et pas levé entre-temps)
 
     msg = ("⚠️ ALERTE VENT · IZENAH (%s)\n"
-           "Épisode venteux prévu sur La Ciotat ↔ Les Embiez : %s.\n\n"
-           "Vent moyen jusqu'à %d kn, rafales %d kn (Cap Sicié %d kn).\n"
+           "Épisode venteux prévu sur La Ciotat : %s.\n\n"
+           "Vent moyen jusqu'à %d kn, rafales %d kn.\n"
            "Probabilité de rafales > 34 kn (48 h) : %d %%.\n\n"
            "⚓ Anticipe un mouillage très protégé : La Ciotat par Mistral, La Madrague par vent d'Est.\n"
            "ℹ️ Bulletin officiel (BMS) Météo-France : https://meteofrance.com/meteo-marine/la-ciotat/570199"
-           % (head, quand, round(peak_s), round(peak_g), round(cs), p34))
+           % (head, quand, round(peak_s), round(peak_g), p34))
 
     if _notify(send, msg):
         _save(STATE, {"last_sig": sig, "at": now.isoformat()})
