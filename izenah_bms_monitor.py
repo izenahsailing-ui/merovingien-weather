@@ -76,14 +76,18 @@ def weekly_health(send=True):
     # modification, donc l'ancien comptage par mtime renvoyait le total depuis
     # toujours apres chaque checkout.
     arch = os.path.join(BASE, "archives")
-    cnt = 0
+    cnt = 0; vus = set()
     try:
         for f in os.listdir(arch):
             m = re.search(r"(\d{4}-\d{2}-\d{2})", f)
-            if f.startswith("briefing") and f.endswith(".pdf") and m:
+            # compte le HTML, format d envoi depuis le 27 juil. 2026, et
+            # retombe sur le PDF pour les semaines anterieures. On deduplique
+            # par date : les deux formats coexistent dans les archives.
+            if f.startswith("briefing") and f.endswith((".html", ".pdf")) and m:
                 d = datetime.date.fromisoformat(m.group(1))
                 if 0 <= (now.date() - d).days <= 7:
-                    cnt += 1
+                    vus.add(m.group(1))
+        cnt = len(vus)
     except Exception:
         pass
     msg = ("🟢 SANTÉ DU SYSTÈME · IZENAH\n"
