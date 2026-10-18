@@ -1,0 +1,282 @@
+<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8">
+<meta name="viewport" content="width=794">
+<title>Briefing marine Izenah</title><style>
+*{box-sizing:border-box}
+body{margin:0;background:#EAEFF3;min-width:794px;color:#1B2B38;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;
+ font-size:14px;line-height:1.45;-webkit-font-smoothing:antialiased}
+.page{width:794px;margin:0 auto;background:#fff;padding:0 0 34px;box-shadow:0 2px 18px rgba(15,40,60,.10)}
+.inner{padding:0 22px}
+.hd{background:#133A5C;color:#fff;padding:16px 22px;display:flex;align-items:flex-end;gap:14px;flex-wrap:wrap}
+.hd h1{margin:0;font-size:23px;letter-spacing:.4px;font-weight:800}
+.hd h1 em{color:#C99A2E;font-style:normal}
+.hd .z{font-size:12.5px;opacity:.85;margin-top:3px}
+.hd .r{margin-left:auto;text-align:right;font-size:13px;font-weight:700}
+.hd .r em{display:block;font-style:italic;font-weight:400;font-size:11.5px;color:#C99A2E;opacity:.95}
+.rule{height:3px;background:#C99A2E}
+.grid2{display:grid;grid-template-columns:1fr 1fr}
+.gap{gap:12px}
+
+.alert{border-radius:9px;padding:12px 14px;color:#fff;display:flex;gap:11px;align-items:flex-start}
+.alert .ic{width:26px;height:26px;border-radius:50%;background:rgba(255,255,255,.22);display:flex;
+ align-items:center;justify-content:center;font-weight:800;flex:0 0 auto}
+.alert .t{font-weight:800;font-size:13.5px;letter-spacing:.3px}
+.alert .s{font-size:12.5px;opacity:.95;margin-top:2px}
+.panel{background:#F4F6F8;border:1px solid #D9E1E8;border-left:5px solid;border-radius:9px;padding:11px 14px}
+.panel .ph{font-size:11px;letter-spacing:.9px;font-weight:800;color:#4A5C6B}
+.panel .pv{font-size:21px;font-weight:800;margin:3px 0 2px;display:flex;align-items:center;gap:8px}
+.panel .dot{width:12px;height:12px;border-radius:50%;display:inline-block}
+.panel .pr{font-size:12.5px;color:#4A5C6B}
+.lg{margin-top:5px;font-size:11px;color:#4A5C6B;display:flex;gap:12px}
+.lg i{width:7px;height:7px;border-radius:50%;display:inline-block;margin-right:4px}
+h3{font-size:16px;margin:22px 0 9px;display:flex;align-items:center;gap:9px;font-weight:800}
+h3 i{width:5px;height:17px;background:#C99A2E;border-radius:2px;display:inline-block}
+h3 em{margin-left:auto;font-style:italic;font-weight:400;font-size:11.5px;color:#4A5C6B}
+.moor{background:#F4F6F8;border:1px solid #D9E1E8;border-radius:9px;padding:11px 14px}
+.moor .mh{display:flex;justify-content:space-between;font-size:15px;font-weight:800;margin-bottom:8px}
+.gauge{position:relative;height:11px}
+.gauge .bar{height:11px;border-radius:6px;background:linear-gradient(90deg,#E3F1E7 0%,#E3F1E7 35%,#FBEEDA 35%,#FBEEDA 60%,#F8DFDB 60%,#F8DFDB 100%)}
+.gauge .cur{position:absolute;top:-3px;width:15px;height:15px;border-radius:50%;background:#fff;border:4px solid;transform:translateX(-50%)}
+.gl{display:flex;justify-content:space-between;font-size:10.5px;color:#4A5C6B;margin-top:3px}
+.mx{font-size:11.5px;color:#4A5C6B;margin-top:6px}
+.where{background:#F4F6F8;border:1px solid #D9E1E8;border-radius:9px;padding:9px 13px;font-size:12.5px;margin:11px 0 0}
+.reco{background:#1B4E73;color:#fff;border-radius:9px;padding:12px 15px;margin:14px 0 0}
+.reco .rt{font-size:11.5px;letter-spacing:.9px;font-weight:800;margin-bottom:8px}
+.reco .rl{display:flex;gap:12px;align-items:flex-start;margin:6px 0;font-size:13px}
+.reco .pill{background:#C99A2E;color:#133A5C;font-size:10.5px;font-weight:800;letter-spacing:.6px;padding:3px 9px;
+ border-radius:4px;flex:0 0 82px;text-align:center;margin-top:1px}
+.tw{}
+table.det{width:100%;border-collapse:collapse;font-size:12px;table-layout:fixed}
+table.det th{background:#1B4E73;color:#fff;text-align:left;padding:7px 9px;font-size:11px;letter-spacing:.4px;font-weight:700}
+table.det th small{font-weight:400;opacity:.8;font-size:9.5px}
+table.det td{padding:7px 9px;border-bottom:1px solid #EDF1F4}
+table.det tr:nth-child(even) td{background:#F8FAFB}
+table.det tr.nuit td{background:#17314A;color:#D7E3EC;border-bottom-color:#22405A}
+table.det tr.nuit td b{color:#fff}
+td.hh{white-space:nowrap;font-weight:700}
+td.w b{display:inline-block} td.w span{display:block;font-size:10.5px;color:#4A5C6B;margin-left:20px}
+table.det span.sub{display:block;font-size:10.5px;color:#4A5C6B;font-weight:400}
+tr.nuit td.w span{color:#9DB4C6}
+.bul{width:9px;height:9px;border-radius:50%;display:inline-block;margin-right:7px}
+.cf{color:#fff;font-size:11px;font-weight:700;padding:3px 11px;border-radius:5px;display:inline-block}
+.chart{width:100%;height:auto;display:block}
+.chart .ax{font-size:11px;fill:#4A5C6B;text-anchor:end}
+.chart .bf{font-size:10px;fill:#8FA3B3}
+.chart .hx{font-size:10.5px;fill:#4A5C6B;text-anchor:middle}
+.arrows{position:relative;height:20px}
+.arrows span{position:absolute;transform:translateX(-50%)}
+.clg{font-size:11.5px;color:#4A5C6B;margin-top:5px}
+.tr{margin:9px 0}
+.tl{font-size:12.5px;margin-bottom:3px}
+.tbar{position:relative;height:19px;background:#EDF1F4;border-radius:10px;overflow:hidden}
+.tfill{height:19px;border-radius:10px}
+.tv{position:absolute;top:2px;font-size:11.5px;font-weight:700}
+.att{background:#F4F6F8;border:1px solid #D9E1E8;border-left:4px solid #C99A2E;border-radius:9px;padding:12px 16px;margin-top:20px}
+.att .at{font-weight:800;font-size:13px;letter-spacing:.5px;margin-bottom:6px}
+.att ul{margin:0;padding-left:17px} .att li{font-size:12.5px;margin:3px 0}
+details{border:1px solid #D9E1E8;border-radius:9px;margin:11px 0;background:#fff}
+details summary{cursor:pointer;padding:10px 14px;font-size:12.5px;font-weight:700;color:#1B6FA8;list-style:none;
+ display:flex;align-items:center;gap:8px;user-select:none}
+details summary::-webkit-details-marker{display:none}
+details summary:before{content:"+";display:inline-flex;width:18px;height:18px;border-radius:50%;background:#1B6FA8;
+ color:#fff;align-items:center;justify-content:center;font-size:14px;font-weight:700;flex:0 0 auto}
+details[open] summary:before{content:"−"}
+details .dc{padding:0 14px 13px;font-size:12.8px;color:#4A5C6B}
+details .dc p{margin:7px 0}
+details.inline{border:none;background:transparent;margin:5px 0 0}
+details.inline summary{padding:0;color:#fff;font-size:11.5px;opacity:.95}
+details.inline summary:before{background:rgba(255,255,255,.25);width:15px;height:15px;font-size:12px}
+details.inline p{color:#fff;font-size:12px;margin:6px 0 0;opacity:.95}
+.nodata{background:#F4F6F8;border:1px dashed #D9E1E8;border-radius:9px;padding:22px;text-align:center;color:#4A5C6B}
+.ft{font-size:11px;color:#4A5C6B;margin-top:20px;border-top:1px solid #D9E1E8;padding-top:11px}
+.sum{background:#F4F6F8;border:1px solid #D9E1E8;border-radius:9px;padding:11px 14px;margin:14px 0 0;font-size:13px}
+</style></head><body>
+<div class="page">
+  <div class="hd">
+    <div><h1>BRIEFING MARINE <em>IZENAH</em></h1><div class="z">La Ciotat · Bandol · Sanary · Les Embiez &nbsp;|&nbsp; au mouillage, 24h</div></div>
+    <div class="r">dimanche 18 octobre 2026, 18h30<em>briefing automatique · données réelles</em></div>
+  </div>
+  <div class="rule"></div>
+  <div class="inner">
+    <div style="height:14px"></div>
+    <div class="grid2 gap"><div class="alert" style="background:#C02718"><div class="ic">!</div><div><div class="t">BMS OFFICIEL EN COURS</div><div class="s">Avis de grand frais</div><details class="inline"><summary>texte intégral du bulletin</summary><p>Valable du lundi 19 octobre à 06H00 UTC au lundi 19 octobre à 18H00 UTC au moins VENT : Est 7, mollissant à l&#x27;est de Giens l&#x27;après-midi. Fortes rafales.</p></details></div></div><div class="alert" style="background:#B5740F"><div class="ic">!</div><div><div class="t">ÉPISODE SIGNALÉ</div><div class="s">Rafales 30 nœuds · risque de dépasser 30 nœuds : 37%</div></div></div></div>
+    <div style="height:12px"></div>
+    
+<div class="grid2 gap">
+  <div class="panel" style="border-left-color:#C02718">
+    <div class="ph">NAVIGATION : PEUX-TU SORTIR ?</div>
+    <div class="pv" style="color:#C02718"><span class="dot" style="background:#C02718"></span>DÉCONSEILLÉ</div>
+    <div class="pr">Vent E, 14 à 20 kn selon les modèles (rafales 30). Mer 1.5 m. BMS officiel en cours sur ce créneau (il fait foi).</div>
+    <div class="lg"><span><i style="background:#1E7A4C"></i>favorable</span><span><i style="background:#B5740F"></i>prudence</span><span><i style="background:#C02718"></i>déconseillé</span></div>
+  </div>
+  <div class="panel" style="border-left-color:#B5740F">
+    <div class="ph">FIABILITÉ : PRÉVISION SÛRE ?</div>
+    <div class="pv" style="color:#B5740F"><span class="dot" style="background:#B5740F"></span>MODÉRÉE · 55%</div>
+    <div class="pr">Modèles d&#x27;accord à 82% · scénarios à 87% · bulletin officiel plus sévère que les modèles</div>
+    <div class="lg"><span><i style="background:#C02718"></i>faible</span><span><i style="background:#B5740F"></i>modérée</span><span><i style="background:#1E7A4C"></i>élevée</span></div>
+  </div>
+</div>
+    <details><summary>Pourquoi ce feu, et comment la fiabilité est calculée</summary><div class="dc">
+      <p><b>Le feu Navigation</b> retient le scénario haut crédible, jamais la moyenne des modèles : sur une sortie côtière, une moyenne lisse justement l'épisode qui te met dedans.</p>
+      <p><b>La fiabilité</b> croise trois choses : l'accord entre les modèles, la dispersion des scénarios d'ensemble, et la stabilité d'un run à l'autre. Modèles d&#x27;accord à 82% · scénarios à 87% · bulletin officiel plus sévère que les modèles</p>
+      <p><b>Situation :</b> Épisode de vent d&#x27;Est établi, atmosphère instable (grains possibles)</p>
+    </div></details>
+    <h3><i></i>Tes deux mouillages<em>confort de la nuit qui vient</em></h3><div class="grid2 gap"><div class="moor">
+  <div class="mh"><b>La Ciotat</b><span style="color:#C02718">À éviter</span></div>
+  <div class="gauge"><div class="bar"></div><div class="cur" style="left:80.0%;border-color:#C02718"></div></div>
+  <div class="gl"><span>Confort</span><span>Risque</span></div>
+  <div class="mx">Exposition calculée dans le lit du vent dominant : <b>0.85</b> sur 1</div>
+</div><div class="moor">
+  <div class="mh"><b>La Madrague (St-Cyr)</b><span style="color:#C02718">Inconfortable</span></div>
+  <div class="gauge"><div class="bar"></div><div class="cur" style="left:70.0%;border-color:#C02718"></div></div>
+  <div class="gl"><span>Confort</span><span>Risque</span></div>
+  <div class="mx">Exposition calculée dans le lit du vent dominant : <b>0.12</b> sur 1</div>
+</div></div><p class="where">Où dormir : <b>cette nuit</b> : La Madrague (St-Cyr) (<span style="color:#C02718">inconfortable</span>) ou La Ciotat (<span style="color:#C02718">à éviter</span>) · <b>demain nuit</b> : La Madrague (St-Cyr) (<span style="color:#C02718">inconfortable</span>) ou La Ciotat (<span style="color:#C02718">à éviter</span>)</p>
+    
+<div class="reco">
+  <div class="rt">RECOMMANDATION ET ANTICIPATION</div>
+  <div class="rl"><span class="pill">CE SOIR</span><div>Mouille à <b>La Madrague (St-Cyr)</b> : inconfortable cette nuit, contre à éviter à La Ciotat.</div></div>
+  <div class="rl"><span class="pill">DEMAIN</span><div>Sortie déconseillée. Vent E, jusqu'à 17 nœuds, rafales 30. Mer 1,5 m.</div></div>
+  <div class="rl"><span class="pill">ANTICIPE</span><div>Vent fort (&gt; force 6) entre J+5 et J+7 : 100% · Coup de vent (&gt; force 7) au-delà de J+8 : 18%</div></div>
+</div>
+    
+    <details><summary>Comment le confort au mouillage est calculé</summary><div class="dc">
+      <p>Le bateau s'aligne sur le vent. Ce qui compte n'est donc pas la direction de la houle par rapport au nord, mais son <b>écart avec le vent</b> : de face tu tangues, de travers tu roules.</p>
+      <p>La <b>période</b> compte autant que la hauteur. Izenah III roule sur environ 3 secondes : un clapot court de 40 cm gêne davantage qu'une houle longue d'un mètre.</p>
+      <p>Sous 5 nœuds, le bateau ne tient plus son cap et se met en travers : <b>moins de vent ne veut pas dire meilleure nuit</b>.</p>
+    </div></details>
+    
+<h3><i></i>Le détail des conditions<em>cadence 2 heures, valeurs colorées selon les seuils</em></h3>
+<div class="tw"><table class="det">
+<tr><th>Heure</th><th>Vent</th><th>Rafales<br><small>nœuds</small></th><th>Houle<br><small>d'où, période</small></th>
+<th>Mer<br><small>hauteur</small></th><th>Air / Eau</th><th>Ciel</th><th>Pression</th></tr>
+<tr>
+<td class="hh"><svg width="15" height="15" viewBox="0 0 24 24"><path d="M6 18h11a4 4 0 0 0 .4-8A6 6 0 0 0 6 11a3.5 3.5 0 0 0 0 7z" fill="#93A7B6"/></svg> 18h</td>
+<td class="w"><svg width="15" height="15" viewBox="0 0 24 24" style="vertical-align:middle"><g transform="rotate(180 12 12)"><line x1="12" y1="20" x2="12" y2="5" stroke="#1B6FA8" stroke-width="2.6" stroke-linecap="round"/><polyline points="7,10 12,4.5 17,10" fill="none" stroke="#1B6FA8" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></g></svg> <b style="color:#1E7A4C">1 à 7 nds</b><span>N force 2</span></td>
+<td style="color:#1E7A4C"><b>14</b></td>
+<td><svg width="15" height="15" viewBox="0 0 24 24" style="vertical-align:middle"><g transform="rotate(90 12 12)"><line x1="12" y1="20" x2="12" y2="5" stroke="#178E92" stroke-width="2.6" stroke-linecap="round"/><polyline points="7,10 12,4.5 17,10" fill="none" stroke="#178E92" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></g></svg> 4 s</td>
+<td style="color:#1E7A4C"><b>0,5 m</b></td>
+<td>19 / 22°C</td>
+<td><svg width="15" height="15" viewBox="0 0 24 24"><path d="M6 18h11a4 4 0 0 0 .4-8A6 6 0 0 0 6 11a3.5 3.5 0 0 0 0 7z" fill="#93A7B6"/></svg> Couvert</td>
+<td>1018 hPa</td></tr><tr class="nuit">
+<td class="hh"><svg width="15" height="15" viewBox="0 0 24 24"><path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5z" fill="#3D5A73"/></svg> 21h</td>
+<td class="w"><svg width="15" height="15" viewBox="0 0 24 24" style="vertical-align:middle"><g transform="rotate(180 12 12)"><line x1="12" y1="20" x2="12" y2="5" stroke="#7FB3D8" stroke-width="2.6" stroke-linecap="round"/><polyline points="7,10 12,4.5 17,10" fill="none" stroke="#7FB3D8" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></g></svg> <b style="color:#1E7A4C">3 à 6 nds</b><span>N force 2</span></td>
+<td style="color:#1E7A4C"><b>13</b></td>
+<td><svg width="15" height="15" viewBox="0 0 24 24" style="vertical-align:middle"><g transform="rotate(90 12 12)"><line x1="12" y1="20" x2="12" y2="5" stroke="#178E92" stroke-width="2.6" stroke-linecap="round"/><polyline points="7,10 12,4.5 17,10" fill="none" stroke="#178E92" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></g></svg> 5 s</td>
+<td style="color:#1E7A4C"><b>0,5 m</b></td>
+<td>19 / 22°C</td>
+<td><svg width="15" height="15" viewBox="0 0 24 24"><path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5z" fill="#3D5A73"/></svg> Couvert</td>
+<td>1019 hPa</td></tr><tr class="nuit">
+<td class="hh"><svg width="15" height="15" viewBox="0 0 24 24"><path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5z" fill="#3D5A73"/></svg> 00h</td>
+<td class="w"><svg width="15" height="15" viewBox="0 0 24 24" style="vertical-align:middle"><g transform="rotate(225 12 12)"><line x1="12" y1="20" x2="12" y2="5" stroke="#7FB3D8" stroke-width="2.6" stroke-linecap="round"/><polyline points="7,10 12,4.5 17,10" fill="none" stroke="#7FB3D8" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></g></svg> <b style="color:#1E7A4C">1 à 4 nds</b><span>NE force 2</span></td>
+<td style="color:#1E7A4C"><b>11</b></td>
+<td><svg width="15" height="15" viewBox="0 0 24 24" style="vertical-align:middle"><g transform="rotate(90 12 12)"><line x1="12" y1="20" x2="12" y2="5" stroke="#178E92" stroke-width="2.6" stroke-linecap="round"/><polyline points="7,10 12,4.5 17,10" fill="none" stroke="#178E92" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></g></svg> 5 s</td>
+<td style="color:#1E7A4C"><b>0,5 m</b></td>
+<td>20 / 22°C</td>
+<td><svg width="15" height="15" viewBox="0 0 24 24"><path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5z" fill="#3D5A73"/></svg> Couvert</td>
+<td>1019 hPa</td></tr><tr class="nuit">
+<td class="hh"><svg width="15" height="15" viewBox="0 0 24 24"><path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5z" fill="#3D5A73"/></svg> 03h</td>
+<td class="w"><svg width="15" height="15" viewBox="0 0 24 24" style="vertical-align:middle"><g transform="rotate(225 12 12)"><line x1="12" y1="20" x2="12" y2="5" stroke="#7FB3D8" stroke-width="2.6" stroke-linecap="round"/><polyline points="7,10 12,4.5 17,10" fill="none" stroke="#7FB3D8" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></g></svg> <b style="color:#1E7A4C">4 à 8 nds</b><span>NE force 2</span></td>
+<td style="color:#1E7A4C"><b>18</b></td>
+<td><svg width="15" height="15" viewBox="0 0 24 24" style="vertical-align:middle"><g transform="rotate(45 12 12)"><line x1="12" y1="20" x2="12" y2="5" stroke="#178E92" stroke-width="2.6" stroke-linecap="round"/><polyline points="7,10 12,4.5 17,10" fill="none" stroke="#178E92" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></g></svg> 4 s</td>
+<td style="color:#B5740F"><b>0,6 m</b></td>
+<td>20 / 22°C</td>
+<td><svg width="15" height="15" viewBox="0 0 24 24"><path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5z" fill="#3D5A73"/></svg> Couvert</td>
+<td>1018 hPa</td></tr><tr class="nuit">
+<td class="hh"><svg width="15" height="15" viewBox="0 0 24 24"><path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5z" fill="#3D5A73"/></svg> 06h</td>
+<td class="w"><svg width="15" height="15" viewBox="0 0 24 24" style="vertical-align:middle"><g transform="rotate(225 12 12)"><line x1="12" y1="20" x2="12" y2="5" stroke="#7FB3D8" stroke-width="2.6" stroke-linecap="round"/><polyline points="7,10 12,4.5 17,10" fill="none" stroke="#7FB3D8" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></g></svg> <b style="color:#1E7A4C">6 à 13 nds</b><span>NE force 3</span></td>
+<td style="color:#B5740F"><b>24</b></td>
+<td><svg width="15" height="15" viewBox="0 0 24 24" style="vertical-align:middle"><g transform="rotate(315 12 12)"><line x1="12" y1="20" x2="12" y2="5" stroke="#178E92" stroke-width="2.6" stroke-linecap="round"/><polyline points="7,10 12,4.5 17,10" fill="none" stroke="#178E92" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></g></svg> 4 s</td>
+<td style="color:#B5740F"><b>0,8 m</b></td>
+<td>20 / 22°C</td>
+<td><svg width="15" height="15" viewBox="0 0 24 24"><path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5z" fill="#3D5A73"/></svg> Couvert</td>
+<td>1018 hPa</td></tr><tr>
+<td class="hh"><svg width="15" height="15" viewBox="0 0 24 24"><path d="M6 18h11a4 4 0 0 0 .4-8A6 6 0 0 0 6 11a3.5 3.5 0 0 0 0 7z" fill="#93A7B6"/></svg> 09h</td>
+<td class="w"><svg width="15" height="15" viewBox="0 0 24 24" style="vertical-align:middle"><g transform="rotate(270 12 12)"><line x1="12" y1="20" x2="12" y2="5" stroke="#1B6FA8" stroke-width="2.6" stroke-linecap="round"/><polyline points="7,10 12,4.5 17,10" fill="none" stroke="#1B6FA8" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></g></svg> <b style="color:#1E7A4C">9 à 13 nds</b><span>E force 4</span></td>
+<td style="color:#C02718"><b>33</b></td>
+<td><svg width="15" height="15" viewBox="0 0 24 24" style="vertical-align:middle"><g transform="rotate(270 12 12)"><line x1="12" y1="20" x2="12" y2="5" stroke="#178E92" stroke-width="2.6" stroke-linecap="round"/><polyline points="7,10 12,4.5 17,10" fill="none" stroke="#178E92" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></g></svg> 4 s</td>
+<td style="color:#B5740F"><b>1,1 m</b></td>
+<td>20 / 22°C</td>
+<td><svg width="15" height="15" viewBox="0 0 24 24"><path d="M6 18h11a4 4 0 0 0 .4-8A6 6 0 0 0 6 11a3.5 3.5 0 0 0 0 7z" fill="#93A7B6"/></svg> Couvert</td>
+<td>1018 hPa</td></tr><tr>
+<td class="hh"><svg width="15" height="15" viewBox="0 0 24 24"><path d="M6 18h11a4 4 0 0 0 .4-8A6 6 0 0 0 6 11a3.5 3.5 0 0 0 0 7z" fill="#93A7B6"/></svg> 12h</td>
+<td class="w"><svg width="15" height="15" viewBox="0 0 24 24" style="vertical-align:middle"><g transform="rotate(270 12 12)"><line x1="12" y1="20" x2="12" y2="5" stroke="#1B6FA8" stroke-width="2.6" stroke-linecap="round"/><polyline points="7,10 12,4.5 17,10" fill="none" stroke="#1B6FA8" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></g></svg> <b style="color:#B5740F">14 à 18 nds</b><span>E force 5</span></td>
+<td style="color:#C02718"><b>43</b></td>
+<td><svg width="15" height="15" viewBox="0 0 24 24" style="vertical-align:middle"><g transform="rotate(270 12 12)"><line x1="12" y1="20" x2="12" y2="5" stroke="#178E92" stroke-width="2.6" stroke-linecap="round"/><polyline points="7,10 12,4.5 17,10" fill="none" stroke="#178E92" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></g></svg> 4 s</td>
+<td style="color:#C02718"><b>1,3 m</b></td>
+<td>22 / 22°C</td>
+<td><svg width="15" height="15" viewBox="0 0 24 24"><path d="M6 18h11a4 4 0 0 0 .4-8A6 6 0 0 0 6 11a3.5 3.5 0 0 0 0 7z" fill="#93A7B6"/></svg> Couvert</td>
+<td>1018 hPa</td></tr><tr>
+<td class="hh"><svg width="15" height="15" viewBox="0 0 24 24"><path d="M6 18h11a4 4 0 0 0 .4-8A6 6 0 0 0 6 11a3.5 3.5 0 0 0 0 7z" fill="#93A7B6"/></svg> 15h</td>
+<td class="w"><svg width="15" height="15" viewBox="0 0 24 24" style="vertical-align:middle"><g transform="rotate(270 12 12)"><line x1="12" y1="20" x2="12" y2="5" stroke="#1B6FA8" stroke-width="2.6" stroke-linecap="round"/><polyline points="7,10 12,4.5 17,10" fill="none" stroke="#1B6FA8" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></g></svg> <b style="color:#B5740F">14 à 20 nds</b><span>E force 5</span></td>
+<td style="color:#C02718"><b>44</b></td>
+<td><svg width="15" height="15" viewBox="0 0 24 24" style="vertical-align:middle"><g transform="rotate(270 12 12)"><line x1="12" y1="20" x2="12" y2="5" stroke="#178E92" stroke-width="2.6" stroke-linecap="round"/><polyline points="7,10 12,4.5 17,10" fill="none" stroke="#178E92" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></g></svg> 5 s</td>
+<td style="color:#C02718"><b>1,5 m</b></td>
+<td>23 / 22°C</td>
+<td><svg width="15" height="15" viewBox="0 0 24 24"><path d="M6 18h11a4 4 0 0 0 .4-8A6 6 0 0 0 6 11a3.5 3.5 0 0 0 0 7z" fill="#93A7B6"/></svg> Couvert</td>
+<td>1017 hPa</td></tr><tr>
+<td class="hh"><svg width="15" height="15" viewBox="0 0 24 24"><path d="M6 18h11a4 4 0 0 0 .4-8A6 6 0 0 0 6 11a3.5 3.5 0 0 0 0 7z" fill="#93A7B6"/></svg> 18h</td>
+<td class="w"><svg width="15" height="15" viewBox="0 0 24 24" style="vertical-align:middle"><g transform="rotate(270 12 12)"><line x1="12" y1="20" x2="12" y2="5" stroke="#1B6FA8" stroke-width="2.6" stroke-linecap="round"/><polyline points="7,10 12,4.5 17,10" fill="none" stroke="#1B6FA8" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></g></svg> <b style="color:#B5740F">13 à 18 nds</b><span>E force 4</span></td>
+<td style="color:#C02718"><b>44</b></td>
+<td><svg width="15" height="15" viewBox="0 0 24 24" style="vertical-align:middle"><g transform="rotate(270 12 12)"><line x1="12" y1="20" x2="12" y2="5" stroke="#178E92" stroke-width="2.6" stroke-linecap="round"/><polyline points="7,10 12,4.5 17,10" fill="none" stroke="#178E92" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></g></svg> 5 s</td>
+<td style="color:#C02718"><b>1,4 m</b></td>
+<td>22 / 22°C</td>
+<td><svg width="15" height="15" viewBox="0 0 24 24"><path d="M6 18h11a4 4 0 0 0 .4-8A6 6 0 0 0 6 11a3.5 3.5 0 0 0 0 7z" fill="#93A7B6"/></svg> Couvert</td>
+<td>1016 hPa</td></tr><tr class="nuit">
+<td class="hh"><svg width="15" height="15" viewBox="0 0 24 24"><path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5z" fill="#3D5A73"/></svg> 21h</td>
+<td class="w"><svg width="15" height="15" viewBox="0 0 24 24" style="vertical-align:middle"><g transform="rotate(270 12 12)"><line x1="12" y1="20" x2="12" y2="5" stroke="#7FB3D8" stroke-width="2.6" stroke-linecap="round"/><polyline points="7,10 12,4.5 17,10" fill="none" stroke="#7FB3D8" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></g></svg> <b style="color:#B5740F">13 à 17 nds</b><span>E force 4</span></td>
+<td style="color:#C02718"><b>38</b></td>
+<td><svg width="15" height="15" viewBox="0 0 24 24" style="vertical-align:middle"><g transform="rotate(315 12 12)"><line x1="12" y1="20" x2="12" y2="5" stroke="#178E92" stroke-width="2.6" stroke-linecap="round"/><polyline points="7,10 12,4.5 17,10" fill="none" stroke="#178E92" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></g></svg> 5 s</td>
+<td style="color:#C02718"><b>1,4 m</b></td>
+<td>22 / 22°C</td>
+<td><svg width="15" height="15" viewBox="0 0 24 24"><path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5z" fill="#3D5A73"/></svg> Couvert</td>
+<td>1016 hPa</td></tr>
+</table></div>
+    <p class="sum"><b>Vent dominant</b> de E, jusqu'à 17 nœuds, rafales 30. <b>Orage et grain :</b> risque <b style="color:#B5740F">modéré</b>.</p>
+
+    <h3><i></i>Le vent heure par heure<em>La Ciotat · maille fine 1,3 km</em></h3>
+    <div class="arrows"><span style="left:4.40%"><svg width="14" height="14" viewBox="0 0 24 24" style="vertical-align:middle"><g transform="rotate(180 12 12)"><line x1="12" y1="20" x2="12" y2="5" stroke="#1B6FA8" stroke-width="2.6" stroke-linecap="round"/><polyline points="7,10 12,4.5 17,10" fill="none" stroke="#1B6FA8" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></g></svg></span><span style="left:10.63%"><svg width="14" height="14" viewBox="0 0 24 24" style="vertical-align:middle"><g transform="rotate(180 12 12)"><line x1="12" y1="20" x2="12" y2="5" stroke="#1B6FA8" stroke-width="2.6" stroke-linecap="round"/><polyline points="7,10 12,4.5 17,10" fill="none" stroke="#1B6FA8" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></g></svg></span><span style="left:16.87%"><svg width="14" height="14" viewBox="0 0 24 24" style="vertical-align:middle"><g transform="rotate(180 12 12)"><line x1="12" y1="20" x2="12" y2="5" stroke="#1B6FA8" stroke-width="2.6" stroke-linecap="round"/><polyline points="7,10 12,4.5 17,10" fill="none" stroke="#1B6FA8" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></g></svg></span><span style="left:23.10%"><svg width="14" height="14" viewBox="0 0 24 24" style="vertical-align:middle"><g transform="rotate(225 12 12)"><line x1="12" y1="20" x2="12" y2="5" stroke="#1B6FA8" stroke-width="2.6" stroke-linecap="round"/><polyline points="7,10 12,4.5 17,10" fill="none" stroke="#1B6FA8" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></g></svg></span><span style="left:29.34%"><svg width="14" height="14" viewBox="0 0 24 24" style="vertical-align:middle"><g transform="rotate(225 12 12)"><line x1="12" y1="20" x2="12" y2="5" stroke="#1B6FA8" stroke-width="2.6" stroke-linecap="round"/><polyline points="7,10 12,4.5 17,10" fill="none" stroke="#1B6FA8" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></g></svg></span><span style="left:35.57%"><svg width="14" height="14" viewBox="0 0 24 24" style="vertical-align:middle"><g transform="rotate(270 12 12)"><line x1="12" y1="20" x2="12" y2="5" stroke="#1B6FA8" stroke-width="2.6" stroke-linecap="round"/><polyline points="7,10 12,4.5 17,10" fill="none" stroke="#1B6FA8" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></g></svg></span><span style="left:41.81%"><svg width="14" height="14" viewBox="0 0 24 24" style="vertical-align:middle"><g transform="rotate(225 12 12)"><line x1="12" y1="20" x2="12" y2="5" stroke="#1B6FA8" stroke-width="2.6" stroke-linecap="round"/><polyline points="7,10 12,4.5 17,10" fill="none" stroke="#1B6FA8" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></g></svg></span><span style="left:48.04%"><svg width="14" height="14" viewBox="0 0 24 24" style="vertical-align:middle"><g transform="rotate(270 12 12)"><line x1="12" y1="20" x2="12" y2="5" stroke="#1B6FA8" stroke-width="2.6" stroke-linecap="round"/><polyline points="7,10 12,4.5 17,10" fill="none" stroke="#1B6FA8" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></g></svg></span><span style="left:54.28%"><svg width="14" height="14" viewBox="0 0 24 24" style="vertical-align:middle"><g transform="rotate(270 12 12)"><line x1="12" y1="20" x2="12" y2="5" stroke="#1B6FA8" stroke-width="2.6" stroke-linecap="round"/><polyline points="7,10 12,4.5 17,10" fill="none" stroke="#1B6FA8" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></g></svg></span><span style="left:60.51%"><svg width="14" height="14" viewBox="0 0 24 24" style="vertical-align:middle"><g transform="rotate(270 12 12)"><line x1="12" y1="20" x2="12" y2="5" stroke="#1B6FA8" stroke-width="2.6" stroke-linecap="round"/><polyline points="7,10 12,4.5 17,10" fill="none" stroke="#1B6FA8" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></g></svg></span><span style="left:66.74%"><svg width="14" height="14" viewBox="0 0 24 24" style="vertical-align:middle"><g transform="rotate(270 12 12)"><line x1="12" y1="20" x2="12" y2="5" stroke="#1B6FA8" stroke-width="2.6" stroke-linecap="round"/><polyline points="7,10 12,4.5 17,10" fill="none" stroke="#1B6FA8" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></g></svg></span><span style="left:72.98%"><svg width="14" height="14" viewBox="0 0 24 24" style="vertical-align:middle"><g transform="rotate(270 12 12)"><line x1="12" y1="20" x2="12" y2="5" stroke="#1B6FA8" stroke-width="2.6" stroke-linecap="round"/><polyline points="7,10 12,4.5 17,10" fill="none" stroke="#1B6FA8" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></g></svg></span><span style="left:79.21%"><svg width="14" height="14" viewBox="0 0 24 24" style="vertical-align:middle"><g transform="rotate(270 12 12)"><line x1="12" y1="20" x2="12" y2="5" stroke="#1B6FA8" stroke-width="2.6" stroke-linecap="round"/><polyline points="7,10 12,4.5 17,10" fill="none" stroke="#1B6FA8" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></g></svg></span><span style="left:85.45%"><svg width="14" height="14" viewBox="0 0 24 24" style="vertical-align:middle"><g transform="rotate(270 12 12)"><line x1="12" y1="20" x2="12" y2="5" stroke="#1B6FA8" stroke-width="2.6" stroke-linecap="round"/><polyline points="7,10 12,4.5 17,10" fill="none" stroke="#1B6FA8" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></g></svg></span><span style="left:91.68%"><svg width="14" height="14" viewBox="0 0 24 24" style="vertical-align:middle"><g transform="rotate(270 12 12)"><line x1="12" y1="20" x2="12" y2="5" stroke="#1B6FA8" stroke-width="2.6" stroke-linecap="round"/><polyline points="7,10 12,4.5 17,10" fill="none" stroke="#1B6FA8" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></g></svg></span></div><svg viewBox="0 0 1000 250" class="chart"><rect x="44.0" y="162.9" width="904.0" height="57.1" fill="#E3F1E7" opacity=".55"/><rect x="44.0" y="130.2" width="904.0" height="32.6" fill="#FBEEDA" opacity=".55"/><rect x="44.0" y="16.0" width="904.0" height="114.2" fill="#F8DFDB" opacity=".55"/><rect x="75.2" y="16.0" width="374.1" height="204.0" fill="#8FA3B3" opacity=".22"/><rect x="823.3" y="16.0" width="124.7" height="204.0" fill="#8FA3B3" opacity=".22"/><line x1="44.0" y1="16.0" x2="44.0" y2="220.0" stroke="#FFFFFF" stroke-width=".8" opacity=".55"/><line x1="75.2" y1="16.0" x2="75.2" y2="220.0" stroke="#FFFFFF" stroke-width=".8" opacity=".55"/><line x1="106.3" y1="16.0" x2="106.3" y2="220.0" stroke="#FFFFFF" stroke-width=".8" opacity=".55"/><line x1="137.5" y1="16.0" x2="137.5" y2="220.0" stroke="#FFFFFF" stroke-width=".8" opacity=".55"/><line x1="168.7" y1="16.0" x2="168.7" y2="220.0" stroke="#FFFFFF" stroke-width=".8" opacity=".55"/><line x1="199.9" y1="16.0" x2="199.9" y2="220.0" stroke="#FFFFFF" stroke-width=".8" opacity=".55"/><line x1="231.0" y1="16.0" x2="231.0" y2="220.0" stroke="#FFFFFF" stroke-width=".8" opacity=".55"/><line x1="262.2" y1="16.0" x2="262.2" y2="220.0" stroke="#FFFFFF" stroke-width=".8" opacity=".55"/><line x1="293.4" y1="16.0" x2="293.4" y2="220.0" stroke="#FFFFFF" stroke-width=".8" opacity=".55"/><line x1="324.6" y1="16.0" x2="324.6" y2="220.0" stroke="#FFFFFF" stroke-width=".8" opacity=".55"/><line x1="355.7" y1="16.0" x2="355.7" y2="220.0" stroke="#FFFFFF" stroke-width=".8" opacity=".55"/><line x1="386.9" y1="16.0" x2="386.9" y2="220.0" stroke="#FFFFFF" stroke-width=".8" opacity=".55"/><line x1="418.1" y1="16.0" x2="418.1" y2="220.0" stroke="#FFFFFF" stroke-width=".8" opacity=".55"/><line x1="449.2" y1="16.0" x2="449.2" y2="220.0" stroke="#FFFFFF" stroke-width=".8" opacity=".55"/><line x1="480.4" y1="16.0" x2="480.4" y2="220.0" stroke="#FFFFFF" stroke-width=".8" opacity=".55"/><line x1="511.6" y1="16.0" x2="511.6" y2="220.0" stroke="#FFFFFF" stroke-width=".8" opacity=".55"/><line x1="542.8" y1="16.0" x2="542.8" y2="220.0" stroke="#FFFFFF" stroke-width=".8" opacity=".55"/><line x1="573.9" y1="16.0" x2="573.9" y2="220.0" stroke="#FFFFFF" stroke-width=".8" opacity=".55"/><line x1="605.1" y1="16.0" x2="605.1" y2="220.0" stroke="#FFFFFF" stroke-width=".8" opacity=".55"/><line x1="636.3" y1="16.0" x2="636.3" y2="220.0" stroke="#FFFFFF" stroke-width=".8" opacity=".55"/><line x1="667.4" y1="16.0" x2="667.4" y2="220.0" stroke="#FFFFFF" stroke-width=".8" opacity=".55"/><line x1="698.6" y1="16.0" x2="698.6" y2="220.0" stroke="#FFFFFF" stroke-width=".8" opacity=".55"/><line x1="729.8" y1="16.0" x2="729.8" y2="220.0" stroke="#FFFFFF" stroke-width=".8" opacity=".55"/><line x1="761.0" y1="16.0" x2="761.0" y2="220.0" stroke="#FFFFFF" stroke-width=".8" opacity=".55"/><line x1="792.1" y1="16.0" x2="792.1" y2="220.0" stroke="#FFFFFF" stroke-width=".8" opacity=".55"/><line x1="823.3" y1="16.0" x2="823.3" y2="220.0" stroke="#FFFFFF" stroke-width=".8" opacity=".55"/><line x1="854.5" y1="16.0" x2="854.5" y2="220.0" stroke="#FFFFFF" stroke-width=".8" opacity=".55"/><line x1="885.7" y1="16.0" x2="885.7" y2="220.0" stroke="#FFFFFF" stroke-width=".8" opacity=".55"/><line x1="916.8" y1="16.0" x2="916.8" y2="220.0" stroke="#FFFFFF" stroke-width=".8" opacity=".55"/><line x1="948.0" y1="16.0" x2="948.0" y2="220.0" stroke="#FFFFFF" stroke-width=".8" opacity=".55"/><text x="36.0" y="224.0" class="ax">0</text><text x="36.0" y="183.2" class="ax">10</text><text x="36.0" y="142.4" class="ax">20</text><text x="36.0" y="101.6" class="ax">30</text><text x="36.0" y="60.8" class="ax">40</text><text x="36.0" y="20.0" class="ax">50</text><text x="954.0" y="210.8" class="bf">force 3</text><text x="954.0" y="182.2" class="bf">force 4</text><text x="954.0" y="157.7" class="bf">force 5</text><text x="954.0" y="137.3" class="bf">force 6</text><text x="954.0" y="112.8" class="bf">force 7</text><text x="954.0" y="88.4" class="bf">force 8</text><polygon points="44.0,191.4 75.2,191.4 106.3,195.5 137.5,195.5 168.7,199.6 199.9,195.5 231.0,203.7 262.2,187.4 293.4,191.4 324.6,187.4 355.7,179.2 386.9,179.2 418.1,167.0 449.2,167.0 480.4,171.0 511.6,167.0 542.8,154.7 573.9,150.6 605.1,146.6 636.3,146.6 667.4,142.5 698.6,138.4 729.8,138.4 761.0,138.4 792.1,146.6 823.3,146.6 854.5,150.6 885.7,150.6 916.8,150.6 948.0,146.6 948.0,162.9 916.8,162.9 885.7,167.0 854.5,162.9 823.3,162.9 792.1,167.0 761.0,167.0 729.8,167.0 698.6,162.9 667.4,162.9 636.3,162.9 605.1,162.9 573.9,162.9 542.8,171.0 511.6,183.3 480.4,183.3 449.2,187.4 418.1,195.5 386.9,195.5 355.7,195.5 324.6,203.7 293.4,211.8 262.2,215.9 231.0,215.9 199.9,207.8 168.7,207.8 137.5,207.8 106.3,207.8 75.2,211.8 44.0,215.9" fill="#1B6FA8" opacity=".22"/><polyline points="44.0,162.9 75.2,162.9 106.3,167.0 137.5,167.0 168.7,162.9 199.9,162.9 231.0,175.1 262.2,171.0 293.4,162.9 324.6,146.6 355.7,142.5 386.9,138.4 418.1,122.1 449.2,118.0 480.4,113.9 511.6,85.4 542.8,73.1 573.9,52.7 605.1,44.6 636.3,44.6 667.4,56.8 698.6,40.5 729.8,32.3 761.0,36.4 792.1,40.5 823.3,44.6 854.5,52.7 885.7,65.0 916.8,56.8 948.0,52.7" fill="none" stroke="#C99A2E" stroke-width="2" stroke-dasharray="5 4"/><polyline points="44.0,199.6 75.2,199.6 106.3,199.6 137.5,199.6 168.7,203.7 199.9,203.7 231.0,207.8 262.2,207.8 293.4,203.7 324.6,195.5 355.7,187.4 386.9,187.4 418.1,183.3 449.2,183.3 480.4,175.1 511.6,171.0 542.8,162.9 573.9,158.8 605.1,154.7 636.3,154.7 667.4,150.6 698.6,150.6 729.8,150.6 761.0,150.6 792.1,154.7 823.3,154.7 854.5,158.8 885.7,158.8 916.8,154.7 948.0,154.7" fill="none" stroke="#1B6FA8" stroke-width="2.6" stroke-linejoin="round"/><circle cx="44.0" cy="199.6" r="2.4" fill="#1B6FA8"/><circle cx="75.2" cy="199.6" r="2.4" fill="#1B6FA8"/><circle cx="106.3" cy="199.6" r="2.4" fill="#1B6FA8"/><circle cx="137.5" cy="199.6" r="2.4" fill="#1B6FA8"/><circle cx="168.7" cy="203.7" r="2.4" fill="#1B6FA8"/><circle cx="199.9" cy="203.7" r="2.4" fill="#1B6FA8"/><circle cx="231.0" cy="207.8" r="2.4" fill="#1B6FA8"/><circle cx="262.2" cy="207.8" r="2.4" fill="#1B6FA8"/><circle cx="293.4" cy="203.7" r="2.4" fill="#1B6FA8"/><circle cx="324.6" cy="195.5" r="2.4" fill="#1B6FA8"/><circle cx="355.7" cy="187.4" r="2.4" fill="#1B6FA8"/><circle cx="386.9" cy="187.4" r="2.4" fill="#1B6FA8"/><circle cx="418.1" cy="183.3" r="2.4" fill="#1B6FA8"/><circle cx="449.2" cy="183.3" r="2.4" fill="#1B6FA8"/><circle cx="480.4" cy="175.1" r="2.4" fill="#1B6FA8"/><circle cx="511.6" cy="171.0" r="2.4" fill="#1B6FA8"/><circle cx="542.8" cy="162.9" r="2.4" fill="#1B6FA8"/><circle cx="573.9" cy="158.8" r="2.4" fill="#1B6FA8"/><circle cx="605.1" cy="154.7" r="2.4" fill="#1B6FA8"/><circle cx="636.3" cy="154.7" r="2.4" fill="#1B6FA8"/><circle cx="667.4" cy="150.6" r="2.4" fill="#1B6FA8"/><circle cx="698.6" cy="150.6" r="2.4" fill="#1B6FA8"/><circle cx="729.8" cy="150.6" r="2.4" fill="#1B6FA8"/><circle cx="761.0" cy="150.6" r="2.4" fill="#1B6FA8"/><circle cx="792.1" cy="154.7" r="2.4" fill="#1B6FA8"/><circle cx="823.3" cy="154.7" r="2.4" fill="#1B6FA8"/><circle cx="854.5" cy="158.8" r="2.4" fill="#1B6FA8"/><circle cx="885.7" cy="158.8" r="2.4" fill="#1B6FA8"/><circle cx="916.8" cy="154.7" r="2.4" fill="#1B6FA8"/><circle cx="948.0" cy="154.7" r="2.4" fill="#1B6FA8"/><text x="44.0" y="240.0" class="hx">18h</text><text x="106.3" y="240.0" class="hx">20h</text><text x="168.7" y="240.0" class="hx">22h</text><text x="231.0" y="240.0" class="hx">00h</text><text x="293.4" y="240.0" class="hx">02h</text><text x="355.7" y="240.0" class="hx">04h</text><text x="418.1" y="240.0" class="hx">06h</text><text x="480.4" y="240.0" class="hx">08h</text><text x="542.8" y="240.0" class="hx">10h</text><text x="605.1" y="240.0" class="hx">12h</text><text x="667.4" y="240.0" class="hx">14h</text><text x="729.8" y="240.0" class="hx">16h</text><text x="792.1" y="240.0" class="hx">18h</text><text x="854.5" y="240.0" class="hx">20h</text><text x="916.8" y="240.0" class="hx">22h</text></svg>
+    <p class="clg">La plage bleutée montre le vent mini et maxi entre modèles : plus elle est étroite, plus c'est fiable. Zone grisée = la nuit. Échelle de droite = la force Beaufort. Les bandes de couleur valent pour le <b>vent moyen</b>, pas pour les rafales.</p>
+    
+<h3><i></i>Les prochains jours<em>consensus des modèles, J+2 à J+5 · pastille = feu navigation</em></h3>
+<div class="tw"><table class="det jours">
+<tr><th>Dir.</th><th>Jour</th><th>Vent</th><th>Rafales</th><th>Houle</th><th>Fiabilité</th></tr>
+<tr>
+<td><svg width="15" height="15" viewBox="0 0 24 24" style="vertical-align:middle"><g transform="rotate(315 12 12)"><line x1="12" y1="20" x2="12" y2="5" stroke="#1B6FA8" stroke-width="2.6" stroke-linecap="round"/><polyline points="7,10 12,4.5 17,10" fill="none" stroke="#1B6FA8" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></g></svg></td><td><span class="bul" style="background:#C02718"></span><b>mardi 20 octobre</b></td>
+<td style="color:#B5740F"><b>2 à 21 nds</b><span class="sub">force 1 à 5</span></td>
+<td style="color:#C02718"><b>40 nds</b></td>
+<td><svg width="15" height="15" viewBox="0 0 24 24" style="vertical-align:middle"><g transform="rotate(315 12 12)"><line x1="12" y1="20" x2="12" y2="5" stroke="#178E92" stroke-width="2.6" stroke-linecap="round"/><polyline points="7,10 12,4.5 17,10" fill="none" stroke="#178E92" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></g></svg> 1,8 m</td>
+<td><span class="cf" style="background:#B5740F">Modérée</span></td></tr><tr>
+<td><svg width="15" height="15" viewBox="0 0 24 24" style="vertical-align:middle"><g transform="rotate(135 12 12)"><line x1="12" y1="20" x2="12" y2="5" stroke="#1B6FA8" stroke-width="2.6" stroke-linecap="round"/><polyline points="7,10 12,4.5 17,10" fill="none" stroke="#1B6FA8" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></g></svg></td><td><span class="bul" style="background:#C02718"></span><b>mercredi 21 octobre</b></td>
+<td style="color:#B5740F"><b>9 à 20 nds</b><span class="sub">force 3 à 5</span></td>
+<td style="color:#C02718"><b>37 nds</b></td>
+<td><svg width="15" height="15" viewBox="0 0 24 24" style="vertical-align:middle"><g transform="rotate(90 12 12)"><line x1="12" y1="20" x2="12" y2="5" stroke="#178E92" stroke-width="2.6" stroke-linecap="round"/><polyline points="7,10 12,4.5 17,10" fill="none" stroke="#178E92" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></g></svg> 1,7 m</td>
+<td><span class="cf" style="background:#B5740F">Modérée</span></td></tr><tr>
+<td><svg width="15" height="15" viewBox="0 0 24 24" style="vertical-align:middle"><g transform="rotate(135 12 12)"><line x1="12" y1="20" x2="12" y2="5" stroke="#1B6FA8" stroke-width="2.6" stroke-linecap="round"/><polyline points="7,10 12,4.5 17,10" fill="none" stroke="#1B6FA8" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></g></svg></td><td><span class="bul" style="background:#C02718"></span><b>jeudi 22 octobre</b></td>
+<td style="color:#B5740F"><b>8 à 17 nds</b><span class="sub">force 3 à 5</span></td>
+<td style="color:#C02718"><b>39 nds</b></td>
+<td><svg width="15" height="15" viewBox="0 0 24 24" style="vertical-align:middle"><g transform="rotate(90 12 12)"><line x1="12" y1="20" x2="12" y2="5" stroke="#178E92" stroke-width="2.6" stroke-linecap="round"/><polyline points="7,10 12,4.5 17,10" fill="none" stroke="#178E92" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></g></svg> 1,3 m</td>
+<td><span class="cf" style="background:#B5740F">Modérée</span></td></tr><tr>
+<td><svg width="15" height="15" viewBox="0 0 24 24" style="vertical-align:middle"><g transform="rotate(180 12 12)"><line x1="12" y1="20" x2="12" y2="5" stroke="#1B6FA8" stroke-width="2.6" stroke-linecap="round"/><polyline points="7,10 12,4.5 17,10" fill="none" stroke="#1B6FA8" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></g></svg></td><td><span class="bul" style="background:#C02718"></span><b>vendredi 23 octobre</b></td>
+<td style="color:#B5740F"><b>1 à 19 nds</b><span class="sub">force 1 à 5</span></td>
+<td style="color:#B5740F"><b>27 nds</b></td>
+<td><svg width="15" height="15" viewBox="0 0 24 24" style="vertical-align:middle"><g transform="rotate(45 12 12)"><line x1="12" y1="20" x2="12" y2="5" stroke="#178E92" stroke-width="2.6" stroke-linecap="round"/><polyline points="7,10 12,4.5 17,10" fill="none" stroke="#178E92" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></g></svg> 1,3 m</td>
+<td><span class="cf" style="background:#B5740F">Modérée</span></td></tr>
+</table></div>
+    
+<h3><i></i>La tendance à douze jours<em>ensembles, part des scénarios franchissant le seuil</em></h3>
+<div class="tr">
+  <div class="tl">Vent fort (&gt; force 6) entre J+5 et J+7</div>
+  <div class="tbar"><div class="tfill" style="width:100.0%;background:#C02718"></div>
+  <span class="tv" style="left:8px;color:#fff">100 %</span></div></div><div class="tr">
+  <div class="tl">Coup de vent (&gt; force 7) au-delà de J+8</div>
+  <div class="tbar"><div class="tfill" style="width:18.0%;background:#1E7A4C"></div>
+  <span class="tv" style="left:19.2%;color:#4A5C6B">18 %</span></div></div>
+    <div class="att"><div class="at">CE QUI MÉRITE ATTENTION</div><ul><li><b>Demain :</b> Déconseillé. Vent E, 14 à 20 kn selon les modèles (rafales 30). Mer 1.5 m. BMS officiel en cours sur ce créneau (il fait foi).</li><li><b>Situation :</b> Épisode de vent d&#x27;Est établi, atmosphère instable (grains possibles)</li><li><b>Mouillage :</b> La Madrague (St-Cyr) cette nuit (inconfortable)</li><li><b>Mer :</b> 1,5 m</li><li><b>Orage et grain :</b> risque modéré</li></ul></div>
+    <details><summary>Méthode et sources</summary><div class="dc">
+      <p>5 modèles confrontés et pondérés (maille fine 1,3 km, ARPEGE, ECMWF, ICON, GFS) plus les ensembles probabilistes. Le badge Navigation retient le scénario haut crédible, jamais la moyenne. Le bulletin officiel et la vigilance Météo-France font foi en cas de divergence.</p>
+      <p>Flèches : bleu = vent, turquoise = houle. Elles pointent vers où va le flux.</p>
+      <p>Généré le dimanche 18 octobre 2026, 18h30.</p>
+    </div></details>
+    <div class="ft">Le Mérovingien · briefing automatique · le bulletin officiel Météo-France fait foi.</div>
+  </div>
+</div></body></html>
